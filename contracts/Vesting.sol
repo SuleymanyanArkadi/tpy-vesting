@@ -56,14 +56,6 @@ contract Vesting is Ownable {
         isWithdrawPaused = isPaused_;
     }
 
-    function createVestingSchedule(ScheduleData memory scheduleData) private {
-        if (scheduleData.isStandard) {
-            createStandardVestingSchedule(scheduleData);
-        } else {
-            createNonStandardVestingSchedule(scheduleData);
-        }
-    }
-
     function createVestingScheduleBatch(ScheduleData[] memory schedulesData) external onlyOwner {
         uint256 length = schedulesData.length;
 
@@ -81,6 +73,7 @@ contract Vesting is Ownable {
         require(schedule_.target != address(0), "Vesting:: Target address cannot be zero");
         require(schedule_.totalAmount > 0, "Vesting:: Token amount cannot be zero");
         if (!schedule_.isStandard) {
+            require((schedule_.percentsPerStages).length > 0, "Vesting:: Requires at least 1 stage");
             require(
                 (schedule_.percentsPerStages).length == (schedule_.stagePeriods).length,
                 "Vesting:: Invalid percents or stages"
@@ -90,6 +83,14 @@ contract Vesting is Ownable {
 
     function isScheduleExist(address scheduleTarget) private view returns (bool) {
         return standardSchedules[scheduleTarget].initialized || nonStandardSchedules[scheduleTarget].initialized;
+    }
+
+    function createVestingSchedule(ScheduleData memory scheduleData) private {
+        if (scheduleData.isStandard) {
+            createStandardVestingSchedule(scheduleData);
+        } else {
+            createNonStandardVestingSchedule(scheduleData);
+        }
     }
 
     function createStandardVestingSchedule(ScheduleData memory scheduleData) private {
@@ -110,5 +111,13 @@ contract Vesting is Ownable {
             percentsPerStages: scheduleData.percentsPerStages,
             stagePeriods: scheduleData.stagePeriods
         });
+    }
+
+    function getSchedulePercents(address target) external view returns (uint8[] memory) {
+        return nonStandardSchedules[target].percentsPerStages;
+    }
+
+    function getScheduleStagePeriods(address target) external view returns (uint32[] memory) {
+        return nonStandardSchedules[target].stagePeriods;
     }
 }
