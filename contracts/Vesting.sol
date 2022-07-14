@@ -69,6 +69,66 @@ contract Vesting is Ownable {
         }
     }
 
+    function withdraw() external {
+        require(!isWithdrawPaused, "Vesting:: Withdraw is paused");
+        require(isScheduleExist(msg.sender), "Vesting:: Schedule does not exist");
+
+        bool isStand = standardSchedules[msg.sender].initialized;
+        uint32 time = uint32(block.timestamp / 60);
+        uint256 amount;
+
+        if (isStand) {
+            amount = _withdrawStandard(msg.sender, time);
+        } else {
+            amount = _withdrawNonStandard(msg.sender, time);
+        }
+
+        uint256 tokenRemaining = token.balanceOf(address(this));
+        require(amount <= tokenRemaining, "Vesting:: Insufficient token in vesting contract");
+
+        emit Withdrawn(msg.sender, amount);
+
+        require(token.transfer(msg.sender, amount));
+    }
+
+    function _withdrawStandard(address target, uint32 time) private returns (uint256 amount) {
+        StandardVestingSchedule memory schedule = standardSchedules[target];
+
+        uint16 stage;
+
+        for (stage = schedule.activeStage; stage < stagePeriods.length; stage++) {
+            if (time >= stagePeriods[stage]) {
+                amount += (percentsPerStages[stage] * schedule.totalAmount) / 100;
+            }
+        }
+
+        // Remove the vesting schedule if all tokens were released to the account.
+        if (schedule.released + amount == schedule.totalAmount) {
+            delete standardSchedules[target];
+        }
+        standardSchedules[target].released += amount;
+        standardSchedules[target].activeStage = stage;
+    }
+
+    function _withdrawNonStandard(address target, uint32 time) private returns (uint256 amount) {
+        NonStandardVestingSchedule memory schedule = nonStandardSchedules[target];
+
+        uint16 stage;
+
+        for (stage = schedule.activeStage; stage < schedule.stagePeriods.length; stage++) {
+            if (time >= schedule.stagePeriods[stage]) {
+                amount += (schedule.percentsPerStages[stage] * schedule.totalAmount) / 100;
+            }
+        }
+
+        // Remove the vesting schedule if all tokens were released to the account.
+        if (schedule.released + amount == schedule.totalAmount) {
+            delete nonStandardSchedules[target];
+        }
+        nonStandardSchedules[target].released += amount;
+        nonStandardSchedules[target].activeStage = stage;
+    }
+
     function ensureValidVestingSchedule(ScheduleData memory schedule_) public pure {
         require(schedule_.target != address(0), "Vesting:: Target address cannot be zero");
         require(schedule_.totalAmount > 0, "Vesting:: Token amount cannot be zero");
