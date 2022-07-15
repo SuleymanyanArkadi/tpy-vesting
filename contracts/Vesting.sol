@@ -38,8 +38,8 @@ contract Vesting is Ownable {
 
     IERC20 public token;
 
-    uint8[5] public percentsPerStages = [5, 10, 20, 30, 35];
-    uint32[5] public stagePeriods = [1, 2, 3, 4, 5]; // 35765040
+    uint16[9] public percentsPerStages = [3000, 750, 750, 750, 750, 1000, 1000, 1000, 1000]; // x * 0.01
+    uint32[9] public stagePeriods = [28160701, 28293181, 28425661, 28558141, 28690621, 28823101, 28955581, 29088061]; // timestamp / 60
 
     bool public isWithdrawPaused;
 
@@ -99,7 +99,7 @@ contract Vesting is Ownable {
         for (stage = schedule.activeStage; stage < stagePeriods.length; stage++) {
             if (time >= stagePeriods[stage]) {
                 amount += (percentsPerStages[stage] * schedule.totalAmount) / 100;
-            }
+            } else break;
         }
 
         // Remove the vesting schedule if all tokens were released to the account.
@@ -118,7 +118,7 @@ contract Vesting is Ownable {
         for (stage = schedule.activeStage; stage < schedule.stagePeriods.length; stage++) {
             if (time >= schedule.stagePeriods[stage]) {
                 amount += (schedule.percentsPerStages[stage] * schedule.totalAmount) / 100;
-            }
+            } else break;
         }
 
         // Remove the vesting schedule if all tokens were released to the account.
