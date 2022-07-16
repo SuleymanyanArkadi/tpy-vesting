@@ -82,8 +82,7 @@ contract Vesting is Ownable {
             amount = _withdrawNonStandard(target, getTime());
         }
 
-        uint256 tokenRemaining = token.balanceOf(address(this));
-        require(amount <= tokenRemaining, "Vesting:: Insufficient token in vesting contract");
+        require(amount <= token.balanceOf(address(this)), "Vesting:: Insufficient token in vesting contract");
 
         emit Withdrawn(target, amount);
 
@@ -104,6 +103,7 @@ contract Vesting is Ownable {
         // Remove the vesting schedule if all tokens were released to the account.
         if (schedule.released + amount == schedule.totalAmount) {
             delete standardSchedules[target];
+            return amount;
         }
         standardSchedules[target].released += amount;
         standardSchedules[target].activeStage = stage;
@@ -123,6 +123,7 @@ contract Vesting is Ownable {
         // Remove the vesting schedule if all tokens were released to the account.
         if (schedule.released + amount == schedule.totalAmount) {
             delete nonStandardSchedules[target];
+            return amount;
         }
         nonStandardSchedules[target].released += amount;
         nonStandardSchedules[target].activeStage = stage;
@@ -180,7 +181,7 @@ contract Vesting is Ownable {
         return nonStandardSchedules[target].stagePeriods;
     }
 
-    function getTime() internal view returns (uint32) {
+    function getTime() internal view virtual returns (uint32) {
         return uint32(block.timestamp / 60);
     }
 }

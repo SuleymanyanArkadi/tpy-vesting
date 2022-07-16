@@ -10,7 +10,7 @@ contract VestingMock is Vesting {
     constructor(IERC20 token) Vesting(token) {}
 
     function setMockTime(uint32 time_) public returns (uint32) {
-        time += time_;
+        time = time_;
         return time;
     }
 
