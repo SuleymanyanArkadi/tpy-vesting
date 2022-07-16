@@ -93,7 +93,7 @@ contract Vesting is Ownable {
 
     function _withdrawStandard(address target, uint32 time) private returns (uint256 amount) {
         StandardVestingSchedule memory schedule = standardSchedules[target];
-
+        require(stagePeriods[schedule.activeStage] <= time, "Vesting:: Enough time has not passed yet");
         uint16 stage;
 
         for (stage = schedule.activeStage; stage < stagePeriods.length; stage++) {
@@ -112,7 +112,7 @@ contract Vesting is Ownable {
 
     function _withdrawNonStandard(address target, uint32 time) private returns (uint256 amount) {
         NonStandardVestingSchedule memory schedule = nonStandardSchedules[target];
-
+        require(schedule.stagePeriods[schedule.activeStage] <= time, "Vesting:: Enough time has not passed yet");
         uint16 stage;
 
         for (stage = schedule.activeStage; stage < schedule.stagePeriods.length; stage++) {
