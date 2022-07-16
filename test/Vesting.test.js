@@ -18,16 +18,18 @@ describe("Vesting", function () {
 		const token = await getContract("MockToken");
 		const vesting = await getContract("Vesting");
 
+		await token.transfer(vesting.address, parseEther("100000000"));
+
 		const standardSchedules = [
 			{
-				totalAmount: parseEther("10000000"),
+				totalAmount: parseEther("10000"),
 				target: deployer.address,
 				isStandard: true,
 				percentsPerStages: [],
 				stagePeriods: []
 			},
 			{
-				totalAmount: parseEther("20000000"),
+				totalAmount: parseEther("30000"),
 				target: caller.address,
 				isStandard: true,
 				percentsPerStages: [],
@@ -36,14 +38,14 @@ describe("Vesting", function () {
 		];
 		const nonStandardSchedules = [
 			{
-				totalAmount: parseEther("10000000"),
+				totalAmount: parseEther("10000"),
 				target: deployer.address,
 				isStandard: false,
 				percentsPerStages: [40, 60],
 				stagePeriods: [28152060, 28152070]
 			},
 			{
-				totalAmount: parseEther("20000000"),
+				totalAmount: parseEther("30000"),
 				target: caller.address,
 				isStandard: false,
 				percentsPerStages: [40, 60],
@@ -52,14 +54,14 @@ describe("Vesting", function () {
 		];
 		const mixedSchedules = [
 			{
-				totalAmount: parseEther("10000000"),
+				totalAmount: parseEther("10000"),
 				target: deployer.address,
 				isStandard: true,
 				percentsPerStages: [],
 				stagePeriods: []
 			},
 			{
-				totalAmount: parseEther("20000000"),
+				totalAmount: parseEther("30000"),
 				target: caller.address,
 				isStandard: false,
 				percentsPerStages: [40, 60],
@@ -175,7 +177,7 @@ describe("Vesting", function () {
 		it("Should revert with 'Vesting:: Target address cannot be zero'", async function () {
 			const schedules = [
 				{
-					totalAmount: parseEther("10000000"),
+					totalAmount: parseEther("10000"),
 					target: constants.AddressZero,
 					isStandard: true,
 					percentsPerStages: [],
@@ -205,7 +207,7 @@ describe("Vesting", function () {
 		it("Should revert with 'Vesting:: Requires at least 1 stage'", async function () {
 			const schedules = [
 				{
-					totalAmount: parseEther("10000000"),
+					totalAmount: parseEther("10000"),
 					target: deployer.address,
 					isStandard: false,
 					percentsPerStages: [],
@@ -220,7 +222,7 @@ describe("Vesting", function () {
 		it("Should revert with 'Vesting:: Invalid percents or stages'", async function () {
 			const schedules = [
 				{
-					totalAmount: parseEther("10000000"),
+					totalAmount: parseEther("10000"),
 					target: deployer.address,
 					isStandard: false,
 					percentsPerStages: [10, 20],
@@ -235,7 +237,7 @@ describe("Vesting", function () {
 		it("Should revert with 'Vesting:: Schedule already exists'", async function () {
 			const schedules = [
 				{
-					totalAmount: parseEther("10000000"),
+					totalAmount: parseEther("10000"),
 					target: deployer.address,
 					isStandard: true,
 					percentsPerStages: [],
@@ -247,6 +249,109 @@ describe("Vesting", function () {
 			await expect(vesting.createVestingScheduleBatch(schedules)).to.be.revertedWith(
 				"Vesting:: Schedule already exists"
 			);
+		});
+	});
+
+	describe("withdraw: ", function () {
+		describe("standard: ", function () {
+			it("Should withdraw for first stage", async function () {
+				await vesting.createVestingScheduleBatch(standardSchedules);
+				await vesting.setMockTime(28160701); // first stage
+
+				await expect(vesting.withdraw(caller.address))
+					.to.emit(vesting, "Withdrawn")
+					.withArgs(caller.address, standardSchedules[1].totalAmount.mul(30).div(100));
+
+				expect(await vesting.standardSchedules(caller.address)).to.eql([
+					true,
+					BigNumber.from(mixedSchedules[1].totalAmount),
+					standardSchedules[1].totalAmount.mul(30).div(100),
+					1
+				]);
+				expect(await token.balanceOf(caller.address)).to.equal(
+					standardSchedules[1].totalAmount.mul(30).div(100)
+				);
+			});
+
+			it("Should withdraw another time after first withdraw", async function () {
+				await vesting.createVestingScheduleBatch(standardSchedules);
+				await vesting.setMockTime(28160701); // first stage
+				await vesting.withdraw(caller.address);
+				await vesting.setMockTime(28293181); // second stage
+
+				await expect(vesting.withdraw(caller.address))
+					.to.emit(vesting, "Withdrawn")
+					.withArgs(caller.address, standardSchedules[1].totalAmount.mul(75).div(1000));
+
+				expect(await vesting.standardSchedules(caller.address)).to.eql([
+					true,
+					BigNumber.from(mixedSchedules[1].totalAmount),
+					standardSchedules[1].totalAmount.mul(375).div(1000),
+					2
+				]);
+				expect(await token.balanceOf(caller.address)).to.equal(
+					standardSchedules[1].totalAmount.mul(375).div(1000)
+				);
+			});
+
+			it("Should withdraw tokens for 3 stages at once", async function () {
+				await vesting.createVestingScheduleBatch(standardSchedules);
+				await vesting.setMockTime(28425661); // third stage
+
+				await expect(vesting.withdraw(caller.address))
+					.to.emit(vesting, "Withdrawn")
+					.withArgs(caller.address, standardSchedules[1].totalAmount.mul(45).div(100));
+
+				expect(await vesting.standardSchedules(caller.address)).to.eql([
+					true,
+					BigNumber.from(mixedSchedules[1].totalAmount),
+					standardSchedules[1].totalAmount.mul(45).div(100),
+					3
+				]);
+				expect(await token.balanceOf(caller.address)).to.equal(
+					standardSchedules[1].totalAmount.mul(45).div(100)
+				);
+			});
+
+			it("Should delete schedule after stages finish", async function () {
+				await vesting.createVestingScheduleBatch(standardSchedules);
+				await vesting.setMockTime(29088061); // last stage
+
+				await expect(vesting.withdraw(caller.address))
+					.to.emit(vesting, "Withdrawn")
+					.withArgs(caller.address, standardSchedules[1].totalAmount);
+
+				expect(await vesting.standardSchedules(caller.address)).to.eql([
+					false,
+					BigNumber.from(0),
+					BigNumber.from(0),
+					0
+				]);
+				expect(await token.balanceOf(caller.address)).to.equal(
+					standardSchedules[1].totalAmount
+				);
+			});
+
+			it("Should revert with 'Vesting:: Withdraw is paused'", async function () {
+				await vesting.createVestingScheduleBatch(standardSchedules);
+				await vesting.setWithdrawPaused(true);
+				await expect(vesting.withdraw(caller.address)).to.be.revertedWith(
+					"Vesting:: Withdraw is paused"
+				);
+			});
+
+			it("Should revert with 'Vesting:: Schedule does not exist'", async function () {
+				await expect(vesting.withdraw(caller.address)).to.be.revertedWith(
+					"Vesting:: Schedule does not exist"
+				);
+			});
+
+			it("Should revert with 'Vesting:: Enough time has not passed yet'", async function () {
+				await vesting.createVestingScheduleBatch(standardSchedules);
+				await expect(vesting.withdraw(caller.address)).to.be.revertedWith(
+					"Vesting:: Enough time has not passed yet"
+				);
+			});
 		});
 	});
 });
