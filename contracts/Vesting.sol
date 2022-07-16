@@ -74,13 +74,12 @@ contract Vesting is Ownable {
         require(isScheduleExist(target), "Vesting:: Schedule does not exist");
 
         bool isStand = standardSchedules[target].initialized;
-        uint32 time = uint32(block.timestamp / 60);
         uint256 amount;
 
         if (isStand) {
-            amount = _withdrawStandard(target, time);
+            amount = _withdrawStandard(target, getTime());
         } else {
-            amount = _withdrawNonStandard(target, time);
+            amount = _withdrawNonStandard(target, getTime());
         }
 
         uint256 tokenRemaining = token.balanceOf(address(this));
@@ -179,5 +178,9 @@ contract Vesting is Ownable {
 
     function getScheduleStagePeriods(address target) external view returns (uint32[] memory) {
         return nonStandardSchedules[target].stagePeriods;
+    }
+
+    function getTime() internal view returns (uint32) {
+        return uint32(block.timestamp / 60);
     }
 }
