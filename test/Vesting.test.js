@@ -40,14 +40,14 @@ describe("Vesting", function () {
 				target: deployer.address,
 				isStandard: false,
 				percentsPerStages: [40, 60],
-				stagePeriods: [1689123600, 1689642000]
+				stagePeriods: [28152060, 28152070]
 			},
 			{
 				totalAmount: parseEther("20000000"),
 				target: caller.address,
 				isStandard: false,
 				percentsPerStages: [40, 60],
-				stagePeriods: [1689123600, 1689642000]
+				stagePeriods: [28152060, 28152070]
 			}
 		];
 		const mixedSchedules = [
@@ -63,7 +63,7 @@ describe("Vesting", function () {
 				target: caller.address,
 				isStandard: false,
 				percentsPerStages: [40, 60],
-				stagePeriods: [1689123600, 1689642000]
+				stagePeriods: [28152060, 28152070]
 			}
 		];
 

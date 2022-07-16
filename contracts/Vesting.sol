@@ -69,26 +69,26 @@ contract Vesting is Ownable {
         }
     }
 
-    function withdraw() external {
+    function withdraw(address target) external {
         require(!isWithdrawPaused, "Vesting:: Withdraw is paused");
-        require(isScheduleExist(msg.sender), "Vesting:: Schedule does not exist");
+        require(isScheduleExist(target), "Vesting:: Schedule does not exist");
 
-        bool isStand = standardSchedules[msg.sender].initialized;
+        bool isStand = standardSchedules[target].initialized;
         uint32 time = uint32(block.timestamp / 60);
         uint256 amount;
 
         if (isStand) {
-            amount = _withdrawStandard(msg.sender, time);
+            amount = _withdrawStandard(target, time);
         } else {
-            amount = _withdrawNonStandard(msg.sender, time);
+            amount = _withdrawNonStandard(target, time);
         }
 
         uint256 tokenRemaining = token.balanceOf(address(this));
         require(amount <= tokenRemaining, "Vesting:: Insufficient token in vesting contract");
 
-        emit Withdrawn(msg.sender, amount);
+        emit Withdrawn(target, amount);
 
-        require(token.transfer(msg.sender, amount));
+        require(token.transfer(target, amount));
     }
 
     function _withdrawStandard(address target, uint32 time) private returns (uint256 amount) {
@@ -98,7 +98,7 @@ contract Vesting is Ownable {
 
         for (stage = schedule.activeStage; stage < stagePeriods.length; stage++) {
             if (time >= stagePeriods[stage]) {
-                amount += (percentsPerStages[stage] * schedule.totalAmount) / 100;
+                amount += (percentsPerStages[stage] * schedule.totalAmount) / 10000;
             } else break;
         }
 
@@ -117,7 +117,7 @@ contract Vesting is Ownable {
 
         for (stage = schedule.activeStage; stage < schedule.stagePeriods.length; stage++) {
             if (time >= schedule.stagePeriods[stage]) {
-                amount += (schedule.percentsPerStages[stage] * schedule.totalAmount) / 100;
+                amount += (schedule.percentsPerStages[stage] * schedule.totalAmount) / 10000;
             } else break;
         }
 
