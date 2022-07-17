@@ -41,15 +41,15 @@ describe("Vesting", function () {
 				totalAmount: parseEther("10000"),
 				target: deployer.address,
 				isStandard: false,
-				percentsPerStages: [40, 60],
-				stagePeriods: [28152060, 28152070]
+				percentsPerStages: [2000, 3000, 5000], // / 100
+				stagePeriods: [28152060, 28162060, 28172060]
 			},
 			{
 				totalAmount: parseEther("30000"),
 				target: caller.address,
 				isStandard: false,
-				percentsPerStages: [40, 60],
-				stagePeriods: [28152060, 28152070]
+				percentsPerStages: [2000, 3000, 5000], // / 100
+				stagePeriods: [28152060, 28162060, 28172060]
 			}
 		];
 		const mixedSchedules = [
@@ -64,8 +64,8 @@ describe("Vesting", function () {
 				totalAmount: parseEther("30000"),
 				target: caller.address,
 				isStandard: false,
-				percentsPerStages: [40, 60],
-				stagePeriods: [28152060, 28152070]
+				percentsPerStages: [2000, 3000, 5000], // / 100
+				stagePeriods: [28152060, 28162060, 28172060]
 			}
 		];
 
@@ -264,7 +264,7 @@ describe("Vesting", function () {
 
 				expect(await vesting.standardSchedules(caller.address)).to.eql([
 					true,
-					BigNumber.from(mixedSchedules[1].totalAmount),
+					BigNumber.from(standardSchedules[1].totalAmount),
 					standardSchedules[1].totalAmount.mul(30).div(100),
 					1
 				]);
@@ -285,7 +285,7 @@ describe("Vesting", function () {
 
 				expect(await vesting.standardSchedules(caller.address)).to.eql([
 					true,
-					BigNumber.from(mixedSchedules[1].totalAmount),
+					BigNumber.from(standardSchedules[1].totalAmount),
 					standardSchedules[1].totalAmount.mul(375).div(1000),
 					2
 				]);
@@ -304,7 +304,7 @@ describe("Vesting", function () {
 
 				expect(await vesting.standardSchedules(caller.address)).to.eql([
 					true,
-					BigNumber.from(mixedSchedules[1].totalAmount),
+					BigNumber.from(standardSchedules[1].totalAmount),
 					standardSchedules[1].totalAmount.mul(45).div(100),
 					3
 				]);
@@ -327,27 +327,87 @@ describe("Vesting", function () {
 					BigNumber.from(0),
 					0
 				]);
-				expect(await token.balanceOf(caller.address)).to.equal(
-					standardSchedules[1].totalAmount
-				);
+				expect(await token.balanceOf(caller.address)).to.equal(standardSchedules[1].totalAmount);
 			});
 
 			it("Should revert with 'Vesting:: Withdraw is paused'", async function () {
 				await vesting.createVestingScheduleBatch(standardSchedules);
 				await vesting.setWithdrawPaused(true);
-				await expect(vesting.withdraw(caller.address)).to.be.revertedWith(
-					"Vesting:: Withdraw is paused"
-				);
+				await expect(vesting.withdraw(caller.address)).to.be.revertedWith("Vesting:: Withdraw is paused");
 			});
 
 			it("Should revert with 'Vesting:: Schedule does not exist'", async function () {
-				await expect(vesting.withdraw(caller.address)).to.be.revertedWith(
-					"Vesting:: Schedule does not exist"
-				);
+				await expect(vesting.withdraw(caller.address)).to.be.revertedWith("Vesting:: Schedule does not exist");
 			});
 
 			it("Should revert with 'Vesting:: Enough time has not passed yet'", async function () {
 				await vesting.createVestingScheduleBatch(standardSchedules);
+				await expect(vesting.withdraw(caller.address)).to.be.revertedWith(
+					"Vesting:: Enough time has not passed yet"
+				);
+			});
+		});
+
+		describe("non-standard: ", function () {
+			it("Should withdraw for first stage", async function () {
+				await vesting.createVestingScheduleBatch(nonStandardSchedules);
+				await vesting.setMockTime(nonStandardSchedules[1].stagePeriods[0]); // first stage
+
+				await expect(vesting.withdraw(caller.address))
+					.to.emit(vesting, "Withdrawn")
+					.withArgs(caller.address, nonStandardSchedules[1].totalAmount.mul(20).div(100));
+
+				expect(await vesting.nonStandardSchedules(caller.address)).to.eql([
+					true,
+					BigNumber.from(nonStandardSchedules[1].totalAmount),
+					nonStandardSchedules[1].totalAmount.mul(20).div(100),
+					1
+				]);
+				expect(await token.balanceOf(caller.address)).to.equal(
+					nonStandardSchedules[1].totalAmount.mul(20).div(100)
+				);
+			});
+
+			it("Should withdraw another time after first withdraw", async function () {
+				await vesting.createVestingScheduleBatch(nonStandardSchedules);
+				await vesting.setMockTime(nonStandardSchedules[1].stagePeriods[0]); // first stage
+				await vesting.withdraw(caller.address);
+				await vesting.setMockTime(nonStandardSchedules[1].stagePeriods[1]); // second stage
+
+				await expect(vesting.withdraw(caller.address))
+					.to.emit(vesting, "Withdrawn")
+					.withArgs(caller.address, nonStandardSchedules[1].totalAmount.mul(30).div(100));
+
+				expect(await vesting.nonStandardSchedules(caller.address)).to.eql([
+					true,
+					BigNumber.from(nonStandardSchedules[1].totalAmount),
+					nonStandardSchedules[1].totalAmount.mul(50).div(100),
+					2
+				]);
+				expect(await token.balanceOf(caller.address)).to.equal(
+					nonStandardSchedules[1].totalAmount.mul(50).div(100)
+				);
+			});
+
+			it("Should delete schedule after stages finish", async function () {
+				await vesting.createVestingScheduleBatch(nonStandardSchedules);
+				await vesting.setMockTime(nonStandardSchedules[1].stagePeriods[2]); // last stage
+
+				await expect(vesting.withdraw(caller.address))
+					.to.emit(vesting, "Withdrawn")
+					.withArgs(caller.address, nonStandardSchedules[1].totalAmount);
+
+				expect(await vesting.nonStandardSchedules(caller.address)).to.eql([
+					false,
+					BigNumber.from(0),
+					BigNumber.from(0),
+					0
+				]);
+				expect(await token.balanceOf(caller.address)).to.equal(nonStandardSchedules[1].totalAmount);
+			});
+
+			it("Should revert with 'Vesting:: Enough time has not passed yet'", async function () {
+				await vesting.createVestingScheduleBatch(nonStandardSchedules);
 				await expect(vesting.withdraw(caller.address)).to.be.revertedWith(
 					"Vesting:: Enough time has not passed yet"
 				);

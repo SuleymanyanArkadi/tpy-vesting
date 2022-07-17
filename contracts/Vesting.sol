@@ -13,7 +13,7 @@ contract Vesting is Ownable {
         uint256 totalAmount;
         address target;
         bool isStandard;
-        uint8[] percentsPerStages;
+        uint16[] percentsPerStages;
         uint32[] stagePeriods;
     }
 
@@ -29,7 +29,7 @@ contract Vesting is Ownable {
         uint256 totalAmount;
         uint256 released;
         uint16 activeStage; // En stage-y voric araj claim a kanchvel
-        uint8[] percentsPerStages;
+        uint16[] percentsPerStages;
         uint32[] stagePeriods;
     }
 
@@ -65,7 +65,7 @@ contract Vesting is Ownable {
             ensureValidVestingSchedule(schedule);
             require(!isScheduleExist(schedule.target), "Vesting:: Schedule already exists");
 
-            createVestingSchedule(schedule);
+            _createVestingSchedule(schedule);
         }
     }
 
@@ -145,15 +145,15 @@ contract Vesting is Ownable {
         return standardSchedules[scheduleTarget].initialized || nonStandardSchedules[scheduleTarget].initialized;
     }
 
-    function createVestingSchedule(ScheduleData memory scheduleData) private {
+    function _createVestingSchedule(ScheduleData memory scheduleData) private {
         if (scheduleData.isStandard) {
-            createStandardVestingSchedule(scheduleData);
+            _createStandardVestingSchedule(scheduleData);
         } else {
-            createNonStandardVestingSchedule(scheduleData);
+            _createNonStandardVestingSchedule(scheduleData);
         }
     }
 
-    function createStandardVestingSchedule(ScheduleData memory scheduleData) private {
+    function _createStandardVestingSchedule(ScheduleData memory scheduleData) private {
         standardSchedules[scheduleData.target] = StandardVestingSchedule({
             initialized: true,
             totalAmount: scheduleData.totalAmount,
@@ -162,7 +162,7 @@ contract Vesting is Ownable {
         });
     }
 
-    function createNonStandardVestingSchedule(ScheduleData memory scheduleData) private {
+    function _createNonStandardVestingSchedule(ScheduleData memory scheduleData) private {
         nonStandardSchedules[scheduleData.target] = NonStandardVestingSchedule({
             initialized: true,
             totalAmount: scheduleData.totalAmount,
@@ -173,7 +173,7 @@ contract Vesting is Ownable {
         });
     }
 
-    function getSchedulePercents(address target) external view returns (uint8[] memory) {
+    function getSchedulePercents(address target) external view returns (uint16[] memory) {
         return nonStandardSchedules[target].percentsPerStages;
     }
 
