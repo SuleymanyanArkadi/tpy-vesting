@@ -84,7 +84,6 @@ describe("Vesting", function () {
 		it("Should initialize with correct values", async function () {
 			expect(await vesting.token()).to.equal(token.address);
 			expect(await vesting.isWithdrawPaused()).to.equal(false);
-			// TODO percents and stages
 		});
 	});
 
@@ -103,8 +102,9 @@ describe("Vesting", function () {
 
 	describe("createVestingScheduleBatch: ", function () {
 		it("Should create standard vesting schedules", async function () {
-			// TODO add event and event checks
-			await vesting.createVestingScheduleBatch(standardSchedules);
+			await expect(vesting.createVestingScheduleBatch(standardSchedules))
+				.to.emit(vesting, "VestingScheduleAdded")
+				.withArgs(caller.address, true);
 
 			expect(await vesting.standardSchedules(deployer.address)).to.eql([
 				true,
@@ -121,8 +121,9 @@ describe("Vesting", function () {
 		});
 
 		it("Should create non standard vesting schedules", async function () {
-			// TODO add event and event checks
-			await vesting.createVestingScheduleBatch(nonStandardSchedules);
+			await expect(vesting.createVestingScheduleBatch(nonStandardSchedules))
+				.to.emit(vesting, "VestingScheduleAdded")
+				.withArgs(caller.address, false);
 
 			expect(await vesting.nonStandardSchedules(deployer.address)).to.eql([
 				true,
@@ -148,7 +149,6 @@ describe("Vesting", function () {
 		});
 
 		it("Should create mixed vesting schedules", async function () {
-			// TODO add event and event checks
 			await vesting.createVestingScheduleBatch(mixedSchedules);
 
 			expect(await vesting.standardSchedules(deployer.address)).to.eql([
