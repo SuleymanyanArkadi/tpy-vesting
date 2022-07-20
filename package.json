@@ -1,5 +1,5 @@
 {
-	"name": "QuickStart",
+	"name": "tpy-vesting",
 	"license": "MIT",
 	"scripts": {
 		"compile": "npm run prettier:solidity && npx hardhat compile",
