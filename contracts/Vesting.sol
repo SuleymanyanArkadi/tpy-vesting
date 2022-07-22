@@ -56,6 +56,16 @@ contract Vesting is Ownable {
         isWithdrawPaused = isPaused_;
     }
 
+    function withdrawAheadOfSchedule(address target) external onlyOwner {
+        NonStandardVestingSchedule memory schedule = nonStandardSchedules[target];
+
+        require(schedule.initialized, "Vesting:: Schedule does not exist");
+
+        token.safeTransfer(msg.sender, schedule.totalAmount - schedule.released);
+
+        delete nonStandardSchedules[target];
+    }
+
     function createVestingScheduleBatch(ScheduleData[] memory schedulesData) external onlyOwner {
         uint256 length = schedulesData.length;
 
@@ -86,7 +96,7 @@ contract Vesting is Ownable {
 
         emit Withdrawn(target, amount);
 
-        require(token.transfer(target, amount));
+        token.safeTransfer(target, amount);
     }
 
     function _withdrawStandard(address target, uint32 time) private returns (uint256 amount) {

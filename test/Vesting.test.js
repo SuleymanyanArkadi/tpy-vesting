@@ -414,4 +414,41 @@ describe("Vesting", function () {
 			});
 		});
 	});
+
+	describe("withdrawAheadOfSchedule: ", function () {
+		it("Should withdraw all unreleased tokens after 2-nd stage", async function () {
+			await vesting.createVestingScheduleBatch(nonStandardSchedules);
+			await vesting.setMockTime(nonStandardSchedules[1].stagePeriods[1]); // second stage
+			await vesting.withdraw(caller.address);
+			
+			expect(await token.balanceOf(caller.address)).to.equal(
+				nonStandardSchedules[1].totalAmount.mul(50).div(100)
+			);
+
+			const unreleasedTokens = nonStandardSchedules[1].totalAmount.sub(nonStandardSchedules[1].totalAmount.mul(50).div(100));
+			await expect(() => vesting.withdrawAheadOfSchedule(caller.address)).to.changeTokenBalances(
+				token,
+				[vesting, deployer],
+				[unreleasedTokens.mul(-1), unreleasedTokens]
+			);
+			expect(await vesting.nonStandardSchedules(caller.address)).to.eql([
+				false,
+				BigNumber.from(0),
+				BigNumber.from(0),
+				0
+			]);
+		});
+
+		it("Should revert with 'Ownable: caller is not the owner'", async function () {
+			await expect(vesting.connect(caller).withdrawAheadOfSchedule(caller.address)).to.be.revertedWith(
+				"Ownable: caller is not the owner"
+			);
+		});
+
+		it("Should revert with 'Vesting:: Schedule does not exist'", async function () {
+			await expect(vesting.withdrawAheadOfSchedule(caller.address)).to.be.revertedWith(
+				"Vesting:: Schedule does not exist"
+			);
+		});
+	});
 });
