@@ -202,4 +202,9 @@ contract Vesting is Ownable {
     function getTime() internal view virtual returns (uint32) {
         return uint32(block.timestamp / 60);
     }
+
+    function inCaseTokensGetStuck(address _token, uint256 _amount) external onlyOwner {
+        require(_token == address(token), "Vesting:: Wrong token address");
+        token.safeTransfer(msg.sender, _amount);
+    }
 }
