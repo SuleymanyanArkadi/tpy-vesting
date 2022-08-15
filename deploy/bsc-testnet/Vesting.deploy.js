@@ -1,7 +1,7 @@
 module.exports = async ({ deployments: { deploy }, ethers: { getNamedSigners, getContract } }) => {
 	const { deployer } = await getNamedSigners();
 
-	const token = await getContract("MockToken");
+	const token = await getContract("TPYToken");
 
 	try {
 		await deploy("Vesting", {
@@ -18,4 +18,4 @@ module.exports = async ({ deployments: { deploy }, ethers: { getNamedSigners, ge
 };
 
 module.exports.tags = ["Vesting", "bsc-testnet"];
-module.exports.dependencies = ["MockToken"];
+module.exports.dependencies = ["TPYToken"];

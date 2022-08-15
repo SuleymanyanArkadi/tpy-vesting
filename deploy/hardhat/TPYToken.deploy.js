@@ -1,14 +1,14 @@
 module.exports = async ({deployments: { deploy }, ethers: { getNamedSigners, getContract }}) => {
 	const { deployer } = await getNamedSigners();
 
-	await deploy("MockToken", {
+	await deploy("TPYToken", {
 		from: deployer.address,
-		contract: "MockToken",
+		contract: "TPYToken",
 		args: [],
 		log: true,
 	});
 
-	return await getContract("MockToken");
+	return await getContract("TPYToken");
 };
 
-module.exports.tags = ["MockToken", "Hardhat"];
+module.exports.tags = ["TPYToken", "Hardhat"];

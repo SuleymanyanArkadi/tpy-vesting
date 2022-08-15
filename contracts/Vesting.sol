@@ -69,15 +69,20 @@ contract Vesting is Ownable {
 
     function createVestingScheduleBatch(ScheduleData[] memory schedulesData) external onlyOwner {
         uint256 length = schedulesData.length;
+        uint256 tokenAmount;
 
         for (uint256 i = 0; i < length; i++) {
             ScheduleData memory schedule = schedulesData[i];
+
+            tokenAmount += schedule.totalAmount;
 
             ensureValidVestingSchedule(schedule);
             require(!isScheduleExist(schedule.target), "Vesting:: Schedule already exists");
 
             _createVestingSchedule(schedule);
         }
+
+        token.safeTransferFrom(msg.sender, address(this), tokenAmount);
     }
 
     function withdraw(address target) external {

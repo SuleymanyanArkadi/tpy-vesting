@@ -2,9 +2,9 @@ module.exports = async ({deployments: { deploy }, ethers: { getNamedSigners, get
 	const { deployer } = await getNamedSigners();
 
 	try {
-		await deploy("MockToken", {
+		await deploy("TPYToken", {
 			from: deployer.address,
-			contract: "MockToken",
+			contract: "TPYToken",
 			args: [],
 			log: true,
 		});
@@ -12,7 +12,7 @@ module.exports = async ({deployments: { deploy }, ethers: { getNamedSigners, get
 		throw error.message;
 	}
 	
-	return await getContract("MockToken");
+	return await getContract("TPYToken");
 };
 
-module.exports.tags = ["MockToken", "bsc-testnet"];
+module.exports.tags = ["TPYToken", "bsc-testnet"];

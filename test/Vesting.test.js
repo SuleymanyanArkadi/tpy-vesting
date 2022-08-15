@@ -15,10 +15,10 @@ describe("Vesting", function () {
 	const setupFixture = createFixture(async () => {
 		await fixture(["", "Hardhat"]);
 
-		const token = await getContract("MockToken");
+		const token = await getContract("TPYToken");
 		const vesting = await getContract("Vesting");
 
-		await token.transfer(vesting.address, parseEther("100000000"));
+		await token.approve(vesting.address, constants.MaxUint256);
 
 		const standardSchedules = [
 			{
@@ -415,18 +415,20 @@ describe("Vesting", function () {
 		});
 	});
 
-	describe("withdrawAheadOfSchedule: ", function () {
+	describe("emergencyWithdraw: ", function () {
 		it("Should withdraw all unreleased tokens after 2-nd stage", async function () {
 			await vesting.createVestingScheduleBatch(nonStandardSchedules);
 			await vesting.setMockTime(nonStandardSchedules[1].stagePeriods[1]); // second stage
 			await vesting.withdraw(caller.address);
-			
+
 			expect(await token.balanceOf(caller.address)).to.equal(
 				nonStandardSchedules[1].totalAmount.mul(50).div(100)
 			);
 
-			const unreleasedTokens = nonStandardSchedules[1].totalAmount.sub(nonStandardSchedules[1].totalAmount.mul(50).div(100));
-			await expect(() => vesting.withdrawAheadOfSchedule(caller.address)).to.changeTokenBalances(
+			const unreleasedTokens = nonStandardSchedules[1].totalAmount.sub(
+				nonStandardSchedules[1].totalAmount.mul(50).div(100)
+			);
+			await expect(() => vesting.emergencyWithdraw(caller.address)).to.changeTokenBalances(
 				token,
 				[vesting, deployer],
 				[unreleasedTokens.mul(-1), unreleasedTokens]
@@ -440,13 +442,13 @@ describe("Vesting", function () {
 		});
 
 		it("Should revert with 'Ownable: caller is not the owner'", async function () {
-			await expect(vesting.connect(caller).withdrawAheadOfSchedule(caller.address)).to.be.revertedWith(
+			await expect(vesting.connect(caller).emergencyWithdraw(caller.address)).to.be.revertedWith(
 				"Ownable: caller is not the owner"
 			);
 		});
 
 		it("Should revert with 'Vesting:: Schedule does not exist'", async function () {
-			await expect(vesting.withdrawAheadOfSchedule(caller.address)).to.be.revertedWith(
+			await expect(vesting.emergencyWithdraw(caller.address)).to.be.revertedWith(
 				"Vesting:: Schedule does not exist"
 			);
 		});
