@@ -9,6 +9,14 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract Vesting is Ownable {
     using SafeERC20 for IERC20;
 
+    /**
+     * @notice The structure is used in the contract createVestingScheduleBatch function for create vesting schedules
+     * @param totalAmount the number of tokens to be vested during the vesting duration.
+     * @param target the address that will receive tokens according to schedule parameters.
+     * @param isStandard is the schedule standard type
+     * @param percentsPerStages token percentages for each stage to be vest. Empty array if schedule is standard
+     * @param stagePeriods schedule stages in minutes(block.timestamp / 60). Empty array if schedule is standard
+     */
     struct ScheduleData {
         uint256 totalAmount;
         address target;
@@ -17,6 +25,16 @@ contract Vesting is Ownable {
         uint32[] stagePeriods;
     }
 
+    /**
+     * @notice Standard vesting schedules of an account.
+     * @param totalAmount the number of tokens to be vested during the vesting duration.
+     * @param released the amount of the token released. It means that the account has called withdraw() and received
+     * @param start the timestamp in minutes at which vesting starts. Must not be equal to zero, as it is used to
+     * check for the existence of a vesting schedule.
+     * @param duration duration in minutes of the period in which the tokens will vest.
+     * `released amount` of tokens to his address.
+     * @param revocable whether the vesting is revocable or not.
+     */
     struct StandardVestingSchedule {
         bool initialized;
         uint256 totalAmount;
@@ -88,10 +106,10 @@ contract Vesting is Ownable {
         require(!isWithdrawPaused, "Vesting:: Withdraw is paused");
         require(isScheduleExist(target), "Vesting:: Schedule does not exist");
 
-        bool isStand = standardSchedules[target].initialized;
+        bool isStandard = standardSchedules[target].initialized;
         uint256 amount;
 
-        if (isStand) {
+        if (isStandard) {
             amount = _withdrawStandard(target, getTime());
         } else {
             amount = _withdrawNonStandard(target, getTime());
@@ -204,11 +222,12 @@ contract Vesting is Ownable {
 
     function updateTarget(
         address from,
-        address to,
-        bool isStandard
+        address to
     ) external {
         require(msg.sender == owner() || msg.sender == from, "Vesting:: Only owner all schedule target can call");
+        require(!standardSchedules[to].initialized && !nonStandardSchedules[to].initialized, "Vesting:: to address already has a schedule");
 
+        bool isStandard = standardSchedules[from].initialized;
         if (isStandard) {
             standardSchedules[to] = standardSchedules[from];
             delete standardSchedules[from];

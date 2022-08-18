@@ -454,11 +454,11 @@ describe("Vesting", function () {
 		});
 	});
 
-	describe.only("updateTarget: ", function () {
+	describe("updateTarget: ", function () {
 		it("Should update non standard vesting schedule", async function () {
 			await vesting.createVestingScheduleBatch(mixedSchedules);
 
-			await vesting.updateTarget(deployer.address, vzgo.address, true);
+			await vesting.updateTarget(deployer.address, vzgo.address);
 			expect(await vesting.standardSchedules(deployer.address)).to.eql([
 				false,
 				BigNumber.from(0),
@@ -476,14 +476,14 @@ describe("Vesting", function () {
 		it("Should update standard vesting schedule", async function () {
 			await vesting.createVestingScheduleBatch(mixedSchedules);
 
-			await vesting.connect(caller).updateTarget(caller.address, deployer.address, false);
+			await vesting.connect(caller).updateTarget(caller.address, vzgo.address);
 			expect(await vesting.nonStandardSchedules(caller.address)).to.eql([
 				false,
 				BigNumber.from(0),
 				BigNumber.from(0),
 				0
 			]);
-			expect(await vesting.nonStandardSchedules(deployer.address)).to.eql([
+			expect(await vesting.nonStandardSchedules(vzgo.address)).to.eql([
 				true,
 				BigNumber.from(mixedSchedules[1].totalAmount),
 				BigNumber.from(0),
@@ -492,8 +492,15 @@ describe("Vesting", function () {
 		});
 
 		it("Should revert with 'Vesting:: Only owner all schedule target can call'", async function () {
-			await expect(vesting.connect(caller).updateTarget(vzgo.address, caller.address, true)).to.be.revertedWith(
+			await expect(vesting.connect(caller).updateTarget(vzgo.address, caller.address)).to.be.revertedWith(
 				"Vesting:: Only owner all schedule target can call"
+			);
+		});
+
+		it("Should revert with 'Vesting:: to address already has a schedule'", async function () {
+			await vesting.createVestingScheduleBatch(mixedSchedules);
+			await expect(vesting.connect(caller).updateTarget(caller.address, deployer.address)).to.be.revertedWith(
+				"Vesting:: to address already has a schedule"
 			);
 		});
 	});
