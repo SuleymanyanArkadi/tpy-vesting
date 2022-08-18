@@ -10,7 +10,7 @@ const {
 } = require("hardhat");
 
 describe("Vesting", function () {
-	let deployer, caller, token, vesting, standardSchedules, nonStandardSchedules, mixedSchedules;
+	let deployer, caller, vzgo, token, vesting, standardSchedules, nonStandardSchedules, mixedSchedules;
 
 	const setupFixture = createFixture(async () => {
 		await fixture(["", "Hardhat"]);
@@ -73,7 +73,7 @@ describe("Vesting", function () {
 	});
 
 	before("Before All: ", async function () {
-		({ deployer, caller } = await getNamedSigners());
+		({ deployer, caller, vzgo } = await getNamedSigners());
 	});
 
 	beforeEach(async function () {
@@ -450,6 +450,50 @@ describe("Vesting", function () {
 		it("Should revert with 'Vesting:: Schedule does not exist'", async function () {
 			await expect(vesting.emergencyWithdraw(caller.address)).to.be.revertedWith(
 				"Vesting:: Schedule does not exist"
+			);
+		});
+	});
+
+	describe.only("updateTarget: ", function () {
+		it("Should update non standard vesting schedule", async function () {
+			await vesting.createVestingScheduleBatch(mixedSchedules);
+
+			await vesting.updateTarget(deployer.address, vzgo.address, true);
+			expect(await vesting.standardSchedules(deployer.address)).to.eql([
+				false,
+				BigNumber.from(0),
+				BigNumber.from(0),
+				0
+			]);
+			expect(await vesting.standardSchedules(vzgo.address)).to.eql([
+				true,
+				BigNumber.from(mixedSchedules[0].totalAmount),
+				BigNumber.from(0),
+				0
+			]);
+		});
+
+		it("Should update standard vesting schedule", async function () {
+			await vesting.createVestingScheduleBatch(mixedSchedules);
+
+			await vesting.connect(caller).updateTarget(caller.address, deployer.address, false);
+			expect(await vesting.nonStandardSchedules(caller.address)).to.eql([
+				false,
+				BigNumber.from(0),
+				BigNumber.from(0),
+				0
+			]);
+			expect(await vesting.nonStandardSchedules(deployer.address)).to.eql([
+				true,
+				BigNumber.from(mixedSchedules[1].totalAmount),
+				BigNumber.from(0),
+				0
+			]);
+		});
+
+		it("Should revert with 'Vesting:: Only owner all schedule target can call'", async function () {
+			await expect(vesting.connect(caller).updateTarget(vzgo.address, caller.address, true)).to.be.revertedWith(
+				"Vesting:: Only owner all schedule target can call"
 			);
 		});
 	});

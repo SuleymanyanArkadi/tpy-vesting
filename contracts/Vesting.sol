@@ -40,7 +40,6 @@ contract Vesting is Ownable {
 
     uint16[9] public percentsPerStages = [3000, 750, 750, 750, 750, 1000, 1000, 1000, 1000]; // % * 100
     uint32[9] public stagePeriods = [28160701, 28293181, 28425661, 28558141, 28690621, 28823101, 28955581, 29088061]; // timestamp / 60
-    // uint32[9] public stagePeriods = [27660249, 27660254, 27660259, 27660264, 27660269, 27660274, 27660279, 27660284]; // timestamp / 60
 
     bool public isWithdrawPaused;
 
@@ -201,6 +200,22 @@ contract Vesting is Ownable {
 
     function getTime() internal view virtual returns (uint32) {
         return uint32(block.timestamp / 60);
+    }
+
+    function updateTarget(
+        address from,
+        address to,
+        bool isStandard
+    ) external {
+        require(msg.sender == owner() || msg.sender == from, "Vesting:: Only owner all schedule target can call");
+
+        if (isStandard) {
+            standardSchedules[to] = standardSchedules[from];
+            delete standardSchedules[from];
+            return;
+        }
+        nonStandardSchedules[to] = nonStandardSchedules[from];
+        delete nonStandardSchedules[from];
     }
 
     function inCaseTokensGetStuck(address _token, uint256 _amount) external onlyOwner {
