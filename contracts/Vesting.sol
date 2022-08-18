@@ -27,13 +27,10 @@ contract Vesting is Ownable {
 
     /**
      * @notice Standard vesting schedules of an account.
+     * @param initialized to check whether such a schedule already exists or not.
      * @param totalAmount the number of tokens to be vested during the vesting duration.
      * @param released the amount of the token released. It means that the account has called withdraw() and received
-     * @param start the timestamp in minutes at which vesting starts. Must not be equal to zero, as it is used to
-     * check for the existence of a vesting schedule.
-     * @param duration duration in minutes of the period in which the tokens will vest.
-     * `released amount` of tokens to his address.
-     * @param revocable whether the vesting is revocable or not.
+     * @param activeStage index of the stage starting from which tokens were not withdrawn.
      */
     struct StandardVestingSchedule {
         bool initialized;
