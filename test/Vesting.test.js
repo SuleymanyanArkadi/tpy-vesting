@@ -508,7 +508,7 @@ describe("Vesting", function () {
 	describe("inCaseTokensGetStuck: ", function () {
 		it("Should withdraw stuck tokens", async function () {
 			await token.transfer(vesting.address, 100);
-			await expect(() => vesting.inCaseTokensGetStuck(token.address, 100)).to.changeTokenBalances(
+			await expect(() => vesting.inCaseTokensGetStuck(100)).to.changeTokenBalances(
 				token,
 				[vesting, deployer],
 				[-100, 100]
@@ -516,14 +516,8 @@ describe("Vesting", function () {
 		});
 
 		it("Should revert with 'Ownable: caller is not the owner'", async function () {
-			await expect(vesting.connect(caller).inCaseTokensGetStuck(token.address, 100)).to.be.revertedWith(
+			await expect(vesting.connect(caller).inCaseTokensGetStuck(100)).to.be.revertedWith(
 				"Ownable: caller is not the owner"
-			);
-		});
-
-		it("Should revert with 'Vesting:: Wrong token address'", async function () {
-			await expect(vesting.inCaseTokensGetStuck(caller.address, 100)).to.be.revertedWith(
-				"Vesting:: Wrong token address"
 			);
 		});
 	});
