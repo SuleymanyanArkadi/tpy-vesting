@@ -14,7 +14,7 @@ contract Vesting is Ownable {
      * @param totalAmount the number of tokens to be vested during the vesting duration.
      * @param target the address that will receive tokens according to schedule parameters.
      * @param isStandard is the schedule standard type
-     * @param percentsPerStages token percentages for each stage to be vest. Empty array if schedule is standard
+     * @param percentsPerStages token percentages for each stage to be vest(% * 100). Empty array if schedule is standard
      * @param stagePeriods schedule stages in minutes(block.timestamp / 60). Empty array if schedule is standard
      */
     struct ScheduleData {
@@ -36,14 +36,23 @@ contract Vesting is Ownable {
         bool initialized;
         uint256 totalAmount;
         uint256 released;
-        uint16 activeStage; // En stage-y voric araj claim a kanchvel
+        uint16 activeStage;
     }
 
+    /**
+     * @notice Non standard vesting schedules of an account.
+     * @param initialized to check whether such a schedule already exists or not.
+     * @param totalAmount the number of tokens to be vested during the vesting duration.
+     * @param released the amount of the token released. It means that the account has called withdraw() and received
+     * @param activeStage index of the stage starting from which tokens were not withdrawn.
+     * @param percentsPerStages token percentages for each stage to be vest(% * 100).
+     * @param stagePeriods schedule stages in minutes(block.timestamp / 60).
+     */
     struct NonStandardVestingSchedule {
         bool initialized;
         uint256 totalAmount;
         uint256 released;
-        uint16 activeStage; // En stage-y voric araj claim a kanchvel
+        uint16 activeStage;
         uint16[] percentsPerStages;
         uint32[] stagePeriods;
     }
@@ -53,8 +62,10 @@ contract Vesting is Ownable {
 
     IERC20 public token;
 
-    uint16[9] public percentsPerStages = [3000, 750, 750, 750, 750, 1000, 1000, 1000, 1000]; // % * 100
-    uint32[9] public stagePeriods = [28160701, 28293181, 28425661, 28558141, 28690621, 28823101, 28955581, 29088061]; // timestamp / 60
+    /// @notice token percentages for standard schedules for each stage to be vest. Percent multiplied by 100
+    uint16[9] public percentsPerStages = [3000, 750, 750, 750, 750, 1000, 1000, 1000, 1000];
+    /// @notice standard schedule stages in minutes. block.timestamp / 60
+    uint32[9] public stagePeriods = [28160701, 28293181, 28425661, 28558141, 28690621, 28823101, 28955581, 29088061];
 
     bool public isWithdrawPaused;
 
@@ -66,11 +77,19 @@ contract Vesting is Ownable {
         token = _token;
     }
 
+    /**
+     * @notice function to change withdraw enabled mode
+     * @param isPaused_ new state of withdraw allowance
+     */
     function setWithdrawPaused(bool isPaused_) external onlyOwner {
         emit WithdrawnPaused(isPaused_);
         isWithdrawPaused = isPaused_;
     }
 
+    /**
+     * @notice function for premature withdrawal of funds
+     * @param target withdrawal schedule target address
+     */
     function emergencyWithdraw(address target) external onlyOwner {
         NonStandardVestingSchedule memory schedule = nonStandardSchedules[target];
 
@@ -81,6 +100,10 @@ contract Vesting is Ownable {
         delete nonStandardSchedules[target];
     }
 
+    /**
+     * @notice Allows the admin to create a new vesting schedules.
+     * @param schedulesData an array of vesting schedules that will be created.
+     */
     function createVestingScheduleBatch(ScheduleData[] memory schedulesData) external onlyOwner {
         uint256 length = schedulesData.length;
         uint256 tokenAmount;
@@ -91,7 +114,7 @@ contract Vesting is Ownable {
             tokenAmount += schedule.totalAmount;
 
             ensureValidVestingSchedule(schedule);
-            require(!isScheduleExist(schedule.target), "Vesting:: Schedule already exists");
+            require(!_isScheduleExist(schedule.target), "Vesting:: Schedule already exists");
 
             _createVestingSchedule(schedule);
         }
@@ -99,9 +122,13 @@ contract Vesting is Ownable {
         token.safeTransferFrom(msg.sender, address(this), tokenAmount);
     }
 
+    /**
+     * @notice function for withdrawing tokens from the schedule
+     * @param target withdrawal schedule target address.
+     */
     function withdraw(address target) external {
         require(!isWithdrawPaused, "Vesting:: Withdraw is paused");
-        require(isScheduleExist(target), "Vesting:: Schedule does not exist");
+        require(_isScheduleExist(target), "Vesting:: Schedule does not exist");
 
         bool isStandard = standardSchedules[target].initialized;
         uint256 amount;
@@ -171,7 +198,7 @@ contract Vesting is Ownable {
         }
     }
 
-    function isScheduleExist(address scheduleTarget) private view returns (bool) {
+    function _isScheduleExist(address scheduleTarget) private view returns (bool) {
         return standardSchedules[scheduleTarget].initialized || nonStandardSchedules[scheduleTarget].initialized;
     }
 
@@ -217,12 +244,17 @@ contract Vesting is Ownable {
         return uint32(block.timestamp / 60);
     }
 
-    function updateTarget(
-        address from,
-        address to
-    ) external {
+    /**
+     * @notice function to update schedule target address
+     * @param from old target address.
+     * @param to new target address.
+     */
+    function updateTarget(address from, address to) external {
         require(msg.sender == owner() || msg.sender == from, "Vesting:: Only owner all schedule target can call");
-        require(!standardSchedules[to].initialized && !nonStandardSchedules[to].initialized, "Vesting:: to address already has a schedule");
+        require(
+            !standardSchedules[to].initialized && !nonStandardSchedules[to].initialized,
+            "Vesting:: to address already has a schedule"
+        );
 
         bool isStandard = standardSchedules[from].initialized;
         if (isStandard) {
@@ -234,8 +266,11 @@ contract Vesting is Ownable {
         delete nonStandardSchedules[from];
     }
 
-    function inCaseTokensGetStuck(address _token, uint256 _amount) external onlyOwner {
-        require(_token == address(token), "Vesting:: Wrong token address");
+    /**
+     * @notice function to withdraw stuck tokens
+     * @param _amount amount of tokens.
+     */
+    function inCaseTokensGetStuck(uint256 _amount) external onlyOwner {
         token.safeTransfer(msg.sender, _amount);
     }
 }
