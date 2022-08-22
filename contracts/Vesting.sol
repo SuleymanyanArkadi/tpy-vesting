@@ -87,6 +87,33 @@ contract Vesting is Ownable {
     }
 
     /**
+     * @notice function to get the amount of tokens available for withdrawal
+     * @param target withdrawal schedule target address
+     */
+    function getClaimableReward(address target) external view returns (uint256 claimableAmount) {
+        uint16 stage;
+
+        if (standardSchedules[target].initialized) {
+            StandardVestingSchedule memory schedule = standardSchedules[target];
+
+            for (stage = schedule.activeStage; stage < stagePeriods.length; stage++) {
+                if (getTime() >= stagePeriods[stage]) {
+                    claimableAmount += (percentsPerStages[stage] * schedule.totalAmount) / 10000;
+                } else break;
+            }
+            return claimableAmount;
+        }
+
+        NonStandardVestingSchedule memory schedule = nonStandardSchedules[target];
+
+        for (stage = schedule.activeStage; stage < schedule.stagePeriods.length; stage++) {
+            if (getTime() >= schedule.stagePeriods[stage]) {
+                claimableAmount += (schedule.percentsPerStages[stage] * schedule.totalAmount) / 10000;
+            } else break;
+        }
+    }
+
+    /**
      * @notice function for premature withdrawal of funds
      * @param target withdrawal schedule target address
      */
