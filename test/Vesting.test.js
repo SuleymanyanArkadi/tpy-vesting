@@ -252,6 +252,50 @@ describe("Vesting", function () {
 		});
 	});
 
+	describe("getClaimableReward", function () {
+		it("Standard", async function () {
+			await vesting.createVestingScheduleBatch(standardSchedules);
+
+			await vesting.setMockTime(28160701); // first stage
+			expect(await vesting.getClaimableReward(caller.address)).to.equal(
+				standardSchedules[1].totalAmount.mul(30).div(100)
+			);
+
+			await vesting.setMockTime(28293181); // second stage
+			expect(await vesting.getClaimableReward(caller.address)).to.equal(
+				standardSchedules[1].totalAmount.mul(375).div(1000)
+			);
+
+			await vesting.withdraw(caller.address);
+
+			await vesting.setMockTime(28425661); // third stage
+			expect(await vesting.getClaimableReward(caller.address)).to.equal(
+				standardSchedules[1].totalAmount.mul(75).div(1000)
+			);
+		});
+
+		it("Non standard", async function () {
+			await vesting.createVestingScheduleBatch(nonStandardSchedules);
+
+			await vesting.setMockTime(28152060); // first stage
+			expect(await vesting.getClaimableReward(caller.address)).to.equal(
+				nonStandardSchedules[1].totalAmount.mul(20).div(100)
+			);
+
+			await vesting.setMockTime(28162060); // second stage
+			expect(await vesting.getClaimableReward(caller.address)).to.equal(
+				nonStandardSchedules[1].totalAmount.mul(50).div(100)
+			);
+
+			await vesting.withdraw(caller.address);
+
+			await vesting.setMockTime(28172060); // third stage
+			expect(await vesting.getClaimableReward(caller.address)).to.equal(
+				nonStandardSchedules[1].totalAmount.mul(50).div(100)
+			);
+		});
+	});
+
 	describe("withdraw: ", function () {
 		describe("standard: ", function () {
 			it("Should withdraw for first stage", async function () {
