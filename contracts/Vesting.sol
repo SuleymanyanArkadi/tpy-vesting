@@ -66,9 +66,8 @@ contract Vesting is Ownable {
     /// @notice standard schedule stages in minutes. block.timestamp / 60
     uint32[9] public stagePeriods = [28160701, 28293181, 28425661, 28558141, 28690621, 28823101, 28955581, 29088061];
 
-    event VestingScheduleAdded(address target, bool isStandard);
-    event Withdrawn(address, uint256 withdrawn);
-    event WithdrawnPaused(bool pauseState);
+    event NewSchedule(address target, bool isStandard);
+    event Withdrawal(address, uint256 amount);
 
     constructor(IERC20 _token) {
         token = _token;
@@ -78,7 +77,7 @@ contract Vesting is Ownable {
      * @notice function to get the amount of tokens available for withdrawal
      * @param target withdrawal schedule target address
      */
-    function getClaimableReward(address target) external view returns (uint256 claimableAmount) {
+    function claimableAmount(address target) external view returns (uint256 amount) {
         require(_isScheduleExist(target), "Vesting:: Schedule does not exist");
         uint16 stage;
 
@@ -87,7 +86,7 @@ contract Vesting is Ownable {
 
             for (stage = schedule.activeStage; stage < stagePeriods.length; stage++) {
                 if (getTime() >= stagePeriods[stage]) {
-                    claimableAmount += (percentsPerStages[stage] * schedule.totalAmount) / 10000;
+                    amount += (percentsPerStages[stage] * schedule.totalAmount) / 10000;
                 } else break;
             }
         } else {
@@ -95,7 +94,7 @@ contract Vesting is Ownable {
 
             for (stage = schedule.activeStage; stage < schedule.stagePeriods.length; stage++) {
                 if (getTime() >= schedule.stagePeriods[stage]) {
-                    claimableAmount += (schedule.percentsPerStages[stage] * schedule.totalAmount) / 10000;
+                    amount += (schedule.percentsPerStages[stage] * schedule.totalAmount) / 10000;
                 } else break;
             }
         }
@@ -152,7 +151,7 @@ contract Vesting is Ownable {
             amount = _withdrawNonStandard(target, getTime());
         }
 
-        emit Withdrawn(target, amount);
+        emit Withdrawal(target, amount);
 
         token.safeTransfer(target, amount);
     }
@@ -228,7 +227,7 @@ contract Vesting is Ownable {
             released: 0,
             activeStage: 0
         });
-        emit VestingScheduleAdded(scheduleData.target, true);
+        emit NewSchedule(scheduleData.target, true);
     }
 
     function _createNonStandardVestingSchedule(ScheduleData memory scheduleData) private {
@@ -240,7 +239,7 @@ contract Vesting is Ownable {
             percentsPerStages: scheduleData.percentsPerStages,
             stagePeriods: scheduleData.stagePeriods
         });
-        emit VestingScheduleAdded(scheduleData.target, false);
+        emit NewSchedule(scheduleData.target, false);
     }
 
     function getSchedulePercents(address target) external view returns (uint16[] memory) {
