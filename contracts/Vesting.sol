@@ -67,9 +67,9 @@ contract Vesting is Ownable {
     uint32[9] public stagePeriods = [28160701, 28293181, 28425661, 28558141, 28690621, 28823101, 28955581, 29088061];
 
     event NewSchedule(address target, bool isStandard);
-    event Withdrawal(address, uint256 amount); // isStandard
-    // EmergencyWithdrawal(target, isStandard)
-    // UpdatedScheduleTarget(oldTarget, newTarget)
+    event Withdrawal(address target, uint256 amount, bool isStandard); 
+    event EmergencyWithdrawal(address target, uint256 amount, bool isStandard);
+    event UpdatedScheduleTarget(address oldTarget, address newTarget);
 
     constructor(IERC20 _token) {
         token = _token;
@@ -153,7 +153,7 @@ contract Vesting is Ownable {
             amount = _withdrawNonStandard(target, getTime());
         }
 
-        emit Withdrawal(target, amount);
+        emit Withdrawal(target, amount, isStandard);
 
         token.safeTransfer(target, amount);
     }
@@ -205,7 +205,7 @@ contract Vesting is Ownable {
             require((schedule_.percentsPerStages).length > 0, "Vesting::MISSING_STAGES");
             require(
                 (schedule_.percentsPerStages).length == (schedule_.stagePeriods).length,
-                "Vesting::INVALID_PERCENTS"
+                "Vesting::INVALID_PERCENTS_OR_STAGES"
             );
         }
     }
@@ -262,7 +262,7 @@ contract Vesting is Ownable {
      * @param to new target address.
      */
     function updateTarget(address from, address to) external {
-        require(msg.sender == owner() || msg.sender == from, "Vesting::FORBIDDED");
+        require(msg.sender == owner() || msg.sender == from, "Vesting::FORBIDDEN");
         require(!_isScheduleExist(to), "Vesting::EXISTING_SCHEDULE");
 
         bool isStandard = standardSchedules[from].initialized;
@@ -281,7 +281,7 @@ contract Vesting is Ownable {
      * @param _amount amount of tokens.
      */
     function inCaseTokensGetStuck(address _token, uint256 _amount) external onlyOwner {
-        require(address(token) != _token, "Vesting::FORBIDDED");
+        require(address(token) != _token, "Vesting::FORBIDDEN");
 
         IERC20(_token).safeTransfer(msg.sender, _amount);
     }
