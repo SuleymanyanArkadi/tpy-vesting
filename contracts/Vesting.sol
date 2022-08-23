@@ -67,7 +67,7 @@ contract Vesting is Ownable {
     uint32[9] public stagePeriods = [28160701, 28293181, 28425661, 28558141, 28690621, 28823101, 28955581, 29088061];
 
     event NewSchedule(address target, bool isStandard);
-    event Withdrawal(address target, uint256 amount, bool isStandard); 
+    event Withdrawal(address target, uint256 amount, bool isStandard);
     event EmergencyWithdrawal(address target, uint256 amount, bool isStandard);
     event UpdatedScheduleTarget(address oldTarget, address newTarget);
 
@@ -107,12 +107,21 @@ contract Vesting is Ownable {
      * @param target withdrawal schedule target address
      */
     function emergencyWithdraw(address target) external onlyOwner {
-        NonStandardVestingSchedule memory schedule = nonStandardSchedules[target];
+        require(_isScheduleExist(target), "Vesting::MISSING_SCHEDULE");
 
-        require(schedule.initialized, "Vesting::MISSING_SCHEDULE");
+        if (standardSchedules[target].initialized) {
+            StandardVestingSchedule memory schedule = standardSchedules[target];
 
-        delete nonStandardSchedules[target];
-        token.safeTransfer(msg.sender, schedule.totalAmount - schedule.released);
+            delete standardSchedules[target];
+            emit EmergencyWithdrawal(target, schedule.totalAmount - schedule.released, true);
+            token.safeTransfer(msg.sender, schedule.totalAmount - schedule.released);
+        } else {
+            NonStandardVestingSchedule memory schedule = nonStandardSchedules[target];
+
+            delete nonStandardSchedules[target];
+            emit EmergencyWithdrawal(target, schedule.totalAmount - schedule.released, false);
+            token.safeTransfer(msg.sender, schedule.totalAmount - schedule.released);
+        }
     }
 
     /**
@@ -269,10 +278,11 @@ contract Vesting is Ownable {
         if (isStandard) {
             standardSchedules[to] = standardSchedules[from];
             delete standardSchedules[from];
-            return;
+        } else {
+            nonStandardSchedules[to] = nonStandardSchedules[from];
+            delete nonStandardSchedules[from];
         }
-        nonStandardSchedules[to] = nonStandardSchedules[from];
-        delete nonStandardSchedules[from];
+        emit UpdatedScheduleTarget(from, to);
     }
 
     /**

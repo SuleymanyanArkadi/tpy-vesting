@@ -171,9 +171,7 @@ describe("Vesting", function () {
 					stagePeriods: []
 				}
 			];
-			await expect(vesting.createVestingScheduleBatch(schedules)).to.be.revertedWith(
-				"Vesting::ZERO_TARGET"
-			);
+			await expect(vesting.createVestingScheduleBatch(schedules)).to.be.revertedWith("Vesting::ZERO_TARGET");
 		});
 
 		it("Should revert with 'Vesting::Vesting::ZERO_AMOUNT'", async function () {
@@ -186,9 +184,7 @@ describe("Vesting", function () {
 					stagePeriods: []
 				}
 			];
-			await expect(vesting.createVestingScheduleBatch(schedules)).to.be.revertedWith(
-				"Vesting::ZERO_AMOUNT"
-			);
+			await expect(vesting.createVestingScheduleBatch(schedules)).to.be.revertedWith("Vesting::ZERO_AMOUNT");
 		});
 
 		it("Should revert with 'Vesting::MISSING_STAGES'", async function () {
@@ -201,9 +197,7 @@ describe("Vesting", function () {
 					stagePeriods: []
 				}
 			];
-			await expect(vesting.createVestingScheduleBatch(schedules)).to.be.revertedWith(
-				"Vesting::MISSING_STAGES"
-			);
+			await expect(vesting.createVestingScheduleBatch(schedules)).to.be.revertedWith("Vesting::MISSING_STAGES");
 		});
 
 		it("Should revert with 'Vesting::INVALID_PERCENTS_OR_STAGES'", async function () {
@@ -371,9 +365,7 @@ describe("Vesting", function () {
 
 			it("Should revert with 'Vesting::TOO_EARLY'", async function () {
 				await vesting.createVestingScheduleBatch(standardSchedules);
-				await expect(vesting.withdraw(caller.address)).to.be.revertedWith(
-					"Vesting::TOO_EARLY"
-				);
+				await expect(vesting.withdraw(caller.address)).to.be.revertedWith("Vesting::TOO_EARLY");
 			});
 		});
 
@@ -437,15 +429,34 @@ describe("Vesting", function () {
 
 			it("Should revert with 'Vesting::TOO_EARLY'", async function () {
 				await vesting.createVestingScheduleBatch(nonStandardSchedules);
-				await expect(vesting.withdraw(caller.address)).to.be.revertedWith(
-					"Vesting::TOO_EARLY"
-				);
+				await expect(vesting.withdraw(caller.address)).to.be.revertedWith("Vesting::TOO_EARLY");
 			});
 		});
 	});
 
 	describe("emergencyWithdraw: ", function () {
-		it("Should withdraw all unreleased tokens after 2-nd stage", async function () {
+		it("Should withdraw all unreleased tokens after 2-nd stage(standard)", async function () {
+			await vesting.createVestingScheduleBatch(standardSchedules);
+			await vesting.setMockTime(28293181); // second stage
+			await vesting.withdraw(caller.address);
+
+			const unreleasedTokens = standardSchedules[1].totalAmount.sub(
+				standardSchedules[1].totalAmount.mul(375).div(1000)
+			);
+			await expect(() => vesting.emergencyWithdraw(caller.address)).to.changeTokenBalances(
+				token,
+				[vesting, deployer],
+				[unreleasedTokens.mul(-1), unreleasedTokens]
+			);
+			expect(await vesting.standardSchedules(caller.address)).to.eql([
+				false,
+				BigNumber.from(0),
+				BigNumber.from(0),
+				0
+			]);
+		});
+
+		it("Should withdraw all unreleased tokens after 2-nd stage(non standard)", async function () {
 			await vesting.createVestingScheduleBatch(nonStandardSchedules);
 			await vesting.setMockTime(nonStandardSchedules[1].stagePeriods[1]); // second stage
 			await vesting.withdraw(caller.address);
@@ -470,6 +481,14 @@ describe("Vesting", function () {
 			]);
 		});
 
+		it("Should emit 'EmergencyWithdrawal' with correct args", async function () {
+			await vesting.createVestingScheduleBatch(nonStandardSchedules);
+
+			await expect(vesting.emergencyWithdraw(caller.address))
+				.to.emit(vesting, "EmergencyWithdrawal")
+				.withArgs(caller.address, nonStandardSchedules[1].totalAmount, false);
+		});
+
 		it("Should revert with 'Ownable: caller is not the owner'", async function () {
 			await expect(vesting.connect(caller).emergencyWithdraw(caller.address)).to.be.revertedWith(
 				"Ownable: caller is not the owner"
@@ -477,9 +496,7 @@ describe("Vesting", function () {
 		});
 
 		it("Should revert with 'Vesting::MISSING_SCHEDULE'", async function () {
-			await expect(vesting.emergencyWithdraw(caller.address)).to.be.revertedWith(
-				"Vesting::MISSING_SCHEDULE"
-			);
+			await expect(vesting.emergencyWithdraw(caller.address)).to.be.revertedWith("Vesting::MISSING_SCHEDULE");
 		});
 	});
 
@@ -487,7 +504,10 @@ describe("Vesting", function () {
 		it("Should update non standard vesting schedule", async function () {
 			await vesting.createVestingScheduleBatch(mixedSchedules);
 
-			await vesting.updateTarget(deployer.address, vzgo.address);
+			await expect(vesting.updateTarget(deployer.address, vzgo.address))
+				.to.emit(vesting, "UpdatedScheduleTarget")
+				.withArgs(deployer.address, vzgo.address);
+
 			expect(await vesting.standardSchedules(deployer.address)).to.eql([
 				false,
 				BigNumber.from(0),
@@ -551,9 +571,7 @@ describe("Vesting", function () {
 		});
 
 		it("Should revert with 'Vesting::FORBIDDEN'", async function () {
-			await expect(vesting.inCaseTokensGetStuck(token.address, 100)).to.be.revertedWith(
-				"Vesting::FORBIDDEN"
-			);
+			await expect(vesting.inCaseTokensGetStuck(token.address, 100)).to.be.revertedWith("Vesting::FORBIDDEN");
 		});
 	});
 });
