@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.7;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -67,8 +66,6 @@ contract Vesting is Ownable {
     /// @notice standard schedule stages in minutes. block.timestamp / 60
     uint32[9] public stagePeriods = [28160701, 28293181, 28425661, 28558141, 28690621, 28823101, 28955581, 29088061];
 
-    bool public isWithdrawPaused;
-
     event VestingScheduleAdded(address target, bool isStandard);
     event Withdrawn(address, uint256 withdrawn);
     event WithdrawnPaused(bool pauseState);
@@ -78,19 +75,11 @@ contract Vesting is Ownable {
     }
 
     /**
-     * @notice function to change withdraw enabled mode
-     * @param isPaused_ new state of withdraw allowance
-     */
-    function setWithdrawPaused(bool isPaused_) external onlyOwner {
-        emit WithdrawnPaused(isPaused_);
-        isWithdrawPaused = isPaused_;
-    }
-
-    /**
      * @notice function to get the amount of tokens available for withdrawal
      * @param target withdrawal schedule target address
      */
     function getClaimableReward(address target) external view returns (uint256 claimableAmount) {
+        require(_isScheduleExist(target), "Vesting:: Schedule does not exist");
         uint16 stage;
 
         if (standardSchedules[target].initialized) {
@@ -101,15 +90,14 @@ contract Vesting is Ownable {
                     claimableAmount += (percentsPerStages[stage] * schedule.totalAmount) / 10000;
                 } else break;
             }
-            return claimableAmount;
-        }
+        } else {
+            NonStandardVestingSchedule memory schedule = nonStandardSchedules[target];
 
-        NonStandardVestingSchedule memory schedule = nonStandardSchedules[target];
-
-        for (stage = schedule.activeStage; stage < schedule.stagePeriods.length; stage++) {
-            if (getTime() >= schedule.stagePeriods[stage]) {
-                claimableAmount += (schedule.percentsPerStages[stage] * schedule.totalAmount) / 10000;
-            } else break;
+            for (stage = schedule.activeStage; stage < schedule.stagePeriods.length; stage++) {
+                if (getTime() >= schedule.stagePeriods[stage]) {
+                    claimableAmount += (schedule.percentsPerStages[stage] * schedule.totalAmount) / 10000;
+                } else break;
+            }
         }
     }
 
@@ -122,9 +110,8 @@ contract Vesting is Ownable {
 
         require(schedule.initialized, "Vesting:: Schedule does not exist");
 
-        token.safeTransfer(msg.sender, schedule.totalAmount - schedule.released);
-
         delete nonStandardSchedules[target];
+        token.safeTransfer(msg.sender, schedule.totalAmount - schedule.released);
     }
 
     /**
@@ -154,7 +141,6 @@ contract Vesting is Ownable {
      * @param target withdrawal schedule target address.
      */
     function withdraw(address target) external {
-        require(!isWithdrawPaused, "Vesting:: Withdraw is paused");
         require(_isScheduleExist(target), "Vesting:: Schedule does not exist");
 
         bool isStandard = standardSchedules[target].initialized;
@@ -165,8 +151,6 @@ contract Vesting is Ownable {
         } else {
             amount = _withdrawNonStandard(target, getTime());
         }
-
-        require(amount <= token.balanceOf(address(this)), "Vesting:: Insufficient token in vesting contract");
 
         emit Withdrawn(target, amount);
 
@@ -295,9 +279,12 @@ contract Vesting is Ownable {
 
     /**
      * @notice function to withdraw stuck tokens
+     * @param _token token for withdraw.
      * @param _amount amount of tokens.
      */
-    function inCaseTokensGetStuck(uint256 _amount) external onlyOwner {
-        token.safeTransfer(msg.sender, _amount);
+    function inCaseTokensGetStuck(address _token, uint256 _amount) external onlyOwner {
+        require(address(token) != _token, "Vesting:: Withdrawal token cannot be a schedule token");
+
+        IERC20(_token).safeTransfer(msg.sender, _amount);
     }
 }
