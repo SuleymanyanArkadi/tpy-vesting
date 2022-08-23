@@ -9,7 +9,7 @@ contract Vesting is Ownable {
     using SafeERC20 for IERC20;
 
     /**
-     * @notice The structure is used in the contract createVestingScheduleBatch function for create vesting schedules
+     * @notice The structure is used in the contract createVestingScheduleBatch function to create vesting schedules
      * @param totalAmount the number of tokens to be vested during the vesting duration.
      * @param target the address that will receive tokens according to schedule parameters.
      * @param isStandard is the schedule standard type
@@ -74,7 +74,7 @@ contract Vesting is Ownable {
     }
 
     /**
-     * @notice function to get the amount of tokens available for withdrawal
+     * @notice get the amount of tokens available for withdrawal
      * @param target withdrawal schedule target address
      */
     function claimableAmount(address target) external view returns (uint256 amount) {
@@ -101,7 +101,7 @@ contract Vesting is Ownable {
     }
 
     /**
-     * @notice function for premature withdrawal of funds
+     * @notice early withdraw tokens to owner address (in case if something goes wrong)
      * @param target withdrawal schedule target address
      */
     function emergencyWithdraw(address target) external onlyOwner {
@@ -114,7 +114,7 @@ contract Vesting is Ownable {
     }
 
     /**
-     * @notice Allows the admin to create a new vesting schedules.
+     * @notice create a new vesting schedules.
      * @param schedulesData an array of vesting schedules that will be created.
      */
     function createVestingScheduleBatch(ScheduleData[] memory schedulesData) external onlyOwner {
@@ -136,7 +136,7 @@ contract Vesting is Ownable {
     }
 
     /**
-     * @notice function for withdrawing tokens from the schedule
+     * @notice claim available (unlocked) tokens
      * @param target withdrawal schedule target address.
      */
     function withdraw(address target) external {
@@ -255,7 +255,7 @@ contract Vesting is Ownable {
     }
 
     /**
-     * @notice function to update schedule target address
+     * @notice update schedule target address
      * @param from old target address.
      * @param to new target address.
      */
@@ -274,7 +274,7 @@ contract Vesting is Ownable {
     }
 
     /**
-     * @notice function to withdraw stuck tokens
+     * @notice withdraw stuck tokens
      * @param _token token for withdraw.
      * @param _amount amount of tokens.
      */
