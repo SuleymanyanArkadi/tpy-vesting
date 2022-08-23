@@ -67,7 +67,9 @@ contract Vesting is Ownable {
     uint32[9] public stagePeriods = [28160701, 28293181, 28425661, 28558141, 28690621, 28823101, 28955581, 29088061];
 
     event NewSchedule(address target, bool isStandard);
-    event Withdrawal(address, uint256 amount);
+    event Withdrawal(address, uint256 amount); // isStandard
+    // EmergencyWithdrawal(target, isStandard)
+    // UpdatedScheduleTarget(oldTarget, newTarget)
 
     constructor(IERC20 _token) {
         token = _token;
@@ -126,8 +128,8 @@ contract Vesting is Ownable {
 
             tokenAmount += schedule.totalAmount;
 
-            ensureValidVestingSchedule(schedule);
-            require(!_isScheduleExist(schedule.target), "Vesting::EXISTING_TARGET");
+            _isValidSchedule(schedule);
+            require(!_isScheduleExist(schedule.target), "Vesting::EXISTING_SCHEDULE");
 
             _createVestingSchedule(schedule);
         }
@@ -196,7 +198,7 @@ contract Vesting is Ownable {
         nonStandardSchedules[target].activeStage = stage;
     }
 
-    function ensureValidVestingSchedule(ScheduleData memory schedule_) public pure {
+    function _isValidSchedule(ScheduleData memory schedule_) private pure {
         require(schedule_.target != address(0), "Vesting::ZERO_TARGET");
         require(schedule_.totalAmount > 0, "Vesting::ZERO_AMOUNT");
         if (!schedule_.isStandard) {
@@ -261,7 +263,7 @@ contract Vesting is Ownable {
      */
     function updateTarget(address from, address to) external {
         require(msg.sender == owner() || msg.sender == from, "Vesting::FORBIDDED");
-        require(!standardSchedules[to].initialized && !nonStandardSchedules[to].initialized, "Vesting::FORBIDDED");
+        require(!_isScheduleExist(to), "Vesting::EXISTING_SCHEDULE");
 
         bool isStandard = standardSchedules[from].initialized;
         if (isStandard) {
