@@ -10,13 +10,14 @@ const {
 } = require("hardhat");
 
 describe("Vesting", function () {
-	let deployer, caller, vzgo, token, vesting, standardSchedules, nonStandardSchedules, mixedSchedules;
+	let deployer, caller, vzgo, testToken, token, vesting, standardSchedules, nonStandardSchedules, mixedSchedules;
 
 	const setupFixture = createFixture(async () => {
 		await fixture(["", "Hardhat"]);
 
 		const token = await getContract("TPYToken");
 		const vesting = await getContract("Vesting");
+		const testToken = await getContract("TestToken");
 
 		await token.approve(vesting.address, constants.MaxUint256);
 
@@ -69,7 +70,7 @@ describe("Vesting", function () {
 			}
 		];
 
-		return [token, vesting, standardSchedules, nonStandardSchedules, mixedSchedules];
+		return [testToken, token, vesting, standardSchedules, nonStandardSchedules, mixedSchedules];
 	});
 
 	before("Before All: ", async function () {
@@ -77,26 +78,12 @@ describe("Vesting", function () {
 	});
 
 	beforeEach(async function () {
-		[token, vesting, standardSchedules, nonStandardSchedules, mixedSchedules] = await setupFixture();
+		[testToken, token, vesting, standardSchedules, nonStandardSchedules, mixedSchedules] = await setupFixture();
 	});
 
 	describe("Initialization: ", function () {
 		it("Should initialize with correct values", async function () {
 			expect(await vesting.token()).to.equal(token.address);
-			expect(await vesting.isWithdrawPaused()).to.equal(false);
-		});
-	});
-
-	describe("setWithdrawPaused: ", function () {
-		it("Should set withdraw paused and emit event", async function () {
-			await expect(vesting.setWithdrawPaused(true)).to.emit(vesting, "WithdrawnPaused").withArgs(true);
-			expect(await vesting.isWithdrawPaused()).to.equal(true);
-		});
-
-		it("Should revert with 'Ownable: caller is not the owner'", async function () {
-			await expect(vesting.connect(caller).setWithdrawPaused(true)).to.be.revertedWith(
-				"Ownable: caller is not the owner"
-			);
 		});
 	});
 
@@ -294,6 +281,10 @@ describe("Vesting", function () {
 				nonStandardSchedules[1].totalAmount.mul(50).div(100)
 			);
 		});
+
+		it("Should revert with 'Vesting:: Schedule does not exist'", async function () {
+			await expect(vesting.getClaimableReward(caller.address)).to.be.revertedWith("Vesting:: Schedule does not exist");
+		});
 	});
 
 	describe("withdraw: ", function () {
@@ -372,12 +363,6 @@ describe("Vesting", function () {
 					0
 				]);
 				expect(await token.balanceOf(caller.address)).to.equal(standardSchedules[1].totalAmount);
-			});
-
-			it("Should revert with 'Vesting:: Withdraw is paused'", async function () {
-				await vesting.createVestingScheduleBatch(standardSchedules);
-				await vesting.setWithdrawPaused(true);
-				await expect(vesting.withdraw(caller.address)).to.be.revertedWith("Vesting:: Withdraw is paused");
 			});
 
 			it("Should revert with 'Vesting:: Schedule does not exist'", async function () {
@@ -551,17 +536,23 @@ describe("Vesting", function () {
 
 	describe("inCaseTokensGetStuck: ", function () {
 		it("Should withdraw stuck tokens", async function () {
-			await token.transfer(vesting.address, 100);
-			await expect(() => vesting.inCaseTokensGetStuck(100)).to.changeTokenBalances(
-				token,
+			await testToken.transfer(vesting.address, 10000);
+			await expect(() => vesting.inCaseTokensGetStuck(testToken.address, 5000)).to.changeTokenBalances(
+				testToken,
 				[vesting, deployer],
-				[-100, 100]
+				[-5000, 5000]
 			);
 		});
 
 		it("Should revert with 'Ownable: caller is not the owner'", async function () {
-			await expect(vesting.connect(caller).inCaseTokensGetStuck(100)).to.be.revertedWith(
+			await expect(vesting.connect(caller).inCaseTokensGetStuck(testToken.address, 100)).to.be.revertedWith(
 				"Ownable: caller is not the owner"
+			);
+		});
+
+		it("Should revert with 'Vesting:: Withdrawal token cannot be a schedule token'", async function () {
+			await expect(vesting.inCaseTokensGetStuck(token.address, 100)).to.be.revertedWith(
+				"Vesting:: Withdrawal token cannot be a schedule token"
 			);
 		});
 	});
