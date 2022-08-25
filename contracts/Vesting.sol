@@ -64,7 +64,17 @@ contract Vesting is Ownable {
     /// @notice token percentages for standard schedules for each stage to be vest. Percent multiplied by 100
     uint16[9] public percentsPerStages = [3000, 750, 750, 750, 750, 1000, 1000, 1000, 1000];
     /// @notice standard schedule stages in minutes. block.timestamp / 60
-    uint32[9] public stagePeriods = [28160701, 28293181, 28425661, 28558141, 28690621, 28823101, 28955581, 29088061];
+    uint32[9] public stagePeriods = [
+        27690620,
+        27690630,
+        27690640,
+        27690650,
+        27690660,
+        27690670,
+        27690680,
+        27690690,
+        27690700
+    ];
 
     event NewSchedule(address target, bool isStandard);
     event Withdrawal(address target, uint256 amount, bool isStandard);

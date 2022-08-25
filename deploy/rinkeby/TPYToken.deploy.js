@@ -15,4 +15,4 @@ module.exports = async ({deployments: { deploy }, ethers: { getNamedSigners, get
 	return await getContract("TPYToken");
 };
 
-module.exports.tags = ["TPYToken", "bsc-testnet"];
+module.exports.tags = ["TPYToken", "rinkeby"];

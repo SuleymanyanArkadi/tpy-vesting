@@ -17,5 +17,5 @@ module.exports = async ({ deployments: { deploy }, ethers: { getNamedSigners, ge
 	return await getContract("Vesting");
 };
 
-module.exports.tags = ["Vesting", "bsc-testnet"];
+module.exports.tags = ["Vesting", "rinkeby"];
 module.exports.dependencies = ["TPYToken"];
