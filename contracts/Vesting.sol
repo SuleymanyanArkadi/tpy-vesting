@@ -65,15 +65,15 @@ contract Vesting is Ownable {
     uint16[9] public percentsPerStages = [3000, 750, 750, 750, 750, 1000, 1000, 1000, 1000];
     /// @notice standard schedule stages in minutes. block.timestamp / 60
     uint32[9] public stagePeriods = [
-        27690620,
-        27690630,
-        27690640,
-        27690650,
-        27690660,
-        27690670,
-        27690680,
-        27690690,
-        27690700
+        28160460,
+        28292940,
+        28425420,
+        28556460,
+        28687500,
+        28819980,
+        28952460,
+        29082060,
+        29213100
     ];
 
     event NewSchedule(address target, bool isStandard);
