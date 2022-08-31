@@ -226,6 +226,11 @@ contract Vesting is Ownable {
                 (schedule_.percentsPerStages).length == (schedule_.stagePeriods).length,
                 "Vesting::INVALID_PERCENTS_OR_STAGES"
             );
+            uint256 totalPercents;
+            for (uint256 i = 0; i < (schedule_.percentsPerStages).length; i++) {
+                totalPercents += schedule_.percentsPerStages[i];
+            }
+            require(totalPercents == 10000, "Vesting::INVALID_PERCENTS");
         }
     }
 

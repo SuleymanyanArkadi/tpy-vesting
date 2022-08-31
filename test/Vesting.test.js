@@ -215,6 +215,19 @@ describe("Vesting", function () {
 			);
 		});
 
+		it("Should revert with 'Vesting::INVALID_PERCENTS'", async function () {
+			const schedules = [
+				{
+					totalAmount: parseEther("10000"),
+					target: deployer.address,
+					isStandard: false,
+					percentsPerStages: [2000, 3000, 5001],
+					stagePeriods: [10, 20, 30]
+				}
+			];
+			await expect(vesting.createVestingScheduleBatch(schedules)).to.be.revertedWith("Vesting::INVALID_PERCENTS");
+		});
+
 		it("Should revert with 'Vesting::EXISTING_SCHEDULE'", async function () {
 			const schedules = [
 				{
@@ -344,7 +357,7 @@ describe("Vesting", function () {
 
 			it("Should delete schedule after stages finish", async function () {
 				await vesting.createVestingScheduleBatch(standardSchedules);
-				await vesting.setMockTime(29088061); // last stage
+				await vesting.setMockTime(29213100); // last stage
 
 				await expect(vesting.withdraw(caller.address))
 					.to.emit(vesting, "Withdrawal")
