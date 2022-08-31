@@ -19,7 +19,7 @@ module.exports = {
 			chainId: 31337,
 			forking: {
 				enabled: false,
-				url: `https://bsc.getblock.io/mainnet/?api_key=${process.env.FORKING_API_KEY}`,
+				url: `https://bsc.getblock.io/mainnet/?api_key=${process.env.FORKING_API_KEY}`
 			},
 			accounts: {
 				mnemonic: "hen hair couple rose hover crush math mango private apology bid antique",
@@ -33,30 +33,17 @@ module.exports = {
 			tags: [tag],
 			deploy: [deploy]
 		},
-		bsc: {
-			chainId: 56,
+		mainnet: {
+			url: `https://mainnet.infura.io/v3/${process.env.INFURA_API_KEY}`,
 			accounts: {
 				mnemonic: "hen hair couple rose hover crush math mango private apology bid antique",
 				path: "m/44'/60'/0'/0",
 				initialIndex: 0,
 				count: 20
 			},
-			url: "https://bsc-dataseed.binance.org",
-			tags: ["bsc"],
-			deploy: ["./deploy/bsc"]
-		},
-		"bsc-testnet": {
-			chainId: 97,
-			gasMultiplier: 1,
-			accounts: {
-				mnemonic: "hen hair couple rose hover crush math mango private apology bid antique",
-				path: "m/44'/60'/0'/0",
-				initialIndex: 0,
-				count: 20
-			},
-			url: "https://data-seed-prebsc-2-s1.binance.org:8545/",
-			tags: ["bsc-testnet"],
-			deploy: ["./deploy/bsc-testnet"]
+			chainId: 1,
+			tags: ["mainnet"],
+			deploy: ["./deploy/mainnet"]
 		},
 		rinkeby: {
 			chainId: 4,
@@ -69,7 +56,7 @@ module.exports = {
 			url: `https://eth-rinkeby.alchemyapi.io/v2/${process.env.ALCHEMY_API_KEY}`,
 			tags: ["rinkeby"],
 			deploy: ["./deploy/rinkeby"]
-		},
+		}
 	},
 	defaultConfig: {
 		gasPrice: "auto"
