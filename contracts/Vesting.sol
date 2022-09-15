@@ -84,28 +84,6 @@ contract Vesting is Ownable {
     }
 
     /**
-     * @notice early withdraw tokens to owner address (in case if something goes wrong)
-     * @param target withdrawal schedule target address
-     */
-    function emergencyWithdraw(address target) external onlyOwner {
-        require(_isScheduleExist(target), "Vesting::MISSING_SCHEDULE");
-
-        if (standardSchedules[target].initialized) {
-            StandardVestingSchedule memory schedule = standardSchedules[target];
-
-            delete standardSchedules[target];
-            emit EmergencyWithdrawal(target, schedule.totalAmount - schedule.released, true);
-            require(token.transfer(msg.sender, schedule.totalAmount - schedule.released));
-        } else {
-            NonStandardVestingSchedule memory schedule = nonStandardSchedules[target];
-
-            delete nonStandardSchedules[target];
-            emit EmergencyWithdrawal(target, schedule.totalAmount - schedule.released, false);
-            require(token.transfer(msg.sender, schedule.totalAmount - schedule.released));
-        }
-    }
-
-    /**
      * @notice create a new vesting schedules.
      * @param schedulesData an array of vesting schedules that will be created.
      */
@@ -154,7 +132,7 @@ contract Vesting is Ownable {
      * @param to new target address.
      */
     function updateTarget(address from, address to) external {
-        require(msg.sender == owner() || msg.sender == from, "Vesting::FORBIDDEN");
+        require(msg.sender == from, "Vesting::FORBIDDEN");
         require(!_isScheduleExist(to), "Vesting::EXISTING_SCHEDULE");
 
         bool isStandard = standardSchedules[from].initialized;
