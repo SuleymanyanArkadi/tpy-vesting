@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.7;
+pragma solidity 0.8.7;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Vesting is Ownable {
-    using SafeERC20 for IERC20;
-
     /**
      * @notice The structure is used in the contract createVestingScheduleBatch function to create vesting schedules
      * @param totalAmount the number of tokens to be vested during the vesting duration.
@@ -59,7 +57,7 @@ contract Vesting is Ownable {
     mapping(address => StandardVestingSchedule) public standardSchedules;
     mapping(address => NonStandardVestingSchedule) public nonStandardSchedules;
 
-    IERC20 public token;
+    IERC20 public immutable token;
 
     /// @notice token percentages for standard schedules for each stage to be vest. Percent multiplied by 100
     uint16[9] public percentsPerStages = [3000, 750, 750, 750, 750, 1000, 1000, 1000, 1000];
@@ -83,6 +81,102 @@ contract Vesting is Ownable {
 
     constructor(IERC20 _token) {
         token = _token;
+    }
+
+    /**
+     * @notice early withdraw tokens to owner address (in case if something goes wrong)
+     * @param target withdrawal schedule target address
+     */
+    function emergencyWithdraw(address target) external onlyOwner {
+        require(_isScheduleExist(target), "Vesting::MISSING_SCHEDULE");
+
+        if (standardSchedules[target].initialized) {
+            StandardVestingSchedule memory schedule = standardSchedules[target];
+
+            delete standardSchedules[target];
+            emit EmergencyWithdrawal(target, schedule.totalAmount - schedule.released, true);
+            require(token.transfer(msg.sender, schedule.totalAmount - schedule.released));
+        } else {
+            NonStandardVestingSchedule memory schedule = nonStandardSchedules[target];
+
+            delete nonStandardSchedules[target];
+            emit EmergencyWithdrawal(target, schedule.totalAmount - schedule.released, false);
+            require(token.transfer(msg.sender, schedule.totalAmount - schedule.released));
+        }
+    }
+
+    /**
+     * @notice create a new vesting schedules.
+     * @param schedulesData an array of vesting schedules that will be created.
+     */
+    function createVestingScheduleBatch(ScheduleData[] memory schedulesData) external onlyOwner {
+        uint256 length = schedulesData.length;
+        uint256 tokenAmount;
+
+        for (uint256 i = 0; i < length; i++) {
+            ScheduleData memory schedule = schedulesData[i];
+
+            tokenAmount += schedule.totalAmount;
+
+            _isValidSchedule(schedule);
+            require(!_isScheduleExist(schedule.target), "Vesting::EXISTING_SCHEDULE");
+
+            _createVestingSchedule(schedule);
+        }
+
+        require(token.transferFrom(msg.sender, address(this), tokenAmount));
+    }
+
+    /**
+     * @notice claim available (unlocked) tokens
+     * @param target withdrawal schedule target address.
+     */
+    function withdraw(address target) external {
+        require(_isScheduleExist(target), "Vesting::MISSING_SCHEDULE");
+
+        bool isStandard = standardSchedules[target].initialized;
+        uint256 amount;
+
+        if (isStandard) {
+            amount = _withdrawStandard(target, getTime());
+        } else {
+            amount = _withdrawNonStandard(target, getTime());
+        }
+
+        emit Withdrawal(target, amount, isStandard);
+
+        require(token.transfer(target, amount));
+    }
+
+    /**
+     * @notice update schedule target address
+     * @param from old target address.
+     * @param to new target address.
+     */
+    function updateTarget(address from, address to) external {
+        require(msg.sender == owner() || msg.sender == from, "Vesting::FORBIDDEN");
+        require(!_isScheduleExist(to), "Vesting::EXISTING_SCHEDULE");
+
+        bool isStandard = standardSchedules[from].initialized;
+        if (isStandard) {
+            standardSchedules[to] = standardSchedules[from];
+            delete standardSchedules[from];
+        } else {
+            nonStandardSchedules[to] = nonStandardSchedules[from];
+            delete nonStandardSchedules[from];
+        }
+        emit UpdatedScheduleTarget(from, to);
+    }
+
+    /**
+     * @notice withdraw stuck tokens
+     * @param _token token for withdraw.
+     * @param _amount amount of tokens.
+     */
+    function inCaseTokensGetStuck(address _token, uint256 _amount) external onlyOwner {
+        require(address(token) != _token, "Vesting::FORBIDDEN");
+
+        require(IERC20(_token).transfer(msg.sender, _amount));
     }
 
     /**
@@ -112,69 +206,16 @@ contract Vesting is Ownable {
         }
     }
 
-    /**
-     * @notice early withdraw tokens to owner address (in case if something goes wrong)
-     * @param target withdrawal schedule target address
-     */
-    function emergencyWithdraw(address target) external onlyOwner {
-        require(_isScheduleExist(target), "Vesting::MISSING_SCHEDULE");
-
-        if (standardSchedules[target].initialized) {
-            StandardVestingSchedule memory schedule = standardSchedules[target];
-
-            delete standardSchedules[target];
-            emit EmergencyWithdrawal(target, schedule.totalAmount - schedule.released, true);
-            token.safeTransfer(msg.sender, schedule.totalAmount - schedule.released);
-        } else {
-            NonStandardVestingSchedule memory schedule = nonStandardSchedules[target];
-
-            delete nonStandardSchedules[target];
-            emit EmergencyWithdrawal(target, schedule.totalAmount - schedule.released, false);
-            token.safeTransfer(msg.sender, schedule.totalAmount - schedule.released);
-        }
+    function getSchedulePercents(address target) external view returns (uint16[] memory) {
+        return nonStandardSchedules[target].percentsPerStages;
     }
 
-    /**
-     * @notice create a new vesting schedules.
-     * @param schedulesData an array of vesting schedules that will be created.
-     */
-    function createVestingScheduleBatch(ScheduleData[] memory schedulesData) external onlyOwner {
-        uint256 length = schedulesData.length;
-        uint256 tokenAmount;
-
-        for (uint256 i = 0; i < length; i++) {
-            ScheduleData memory schedule = schedulesData[i];
-
-            tokenAmount += schedule.totalAmount;
-
-            _isValidSchedule(schedule);
-            require(!_isScheduleExist(schedule.target), "Vesting::EXISTING_SCHEDULE");
-
-            _createVestingSchedule(schedule);
-        }
-
-        token.safeTransferFrom(msg.sender, address(this), tokenAmount);
+    function getScheduleStagePeriods(address target) external view returns (uint32[] memory) {
+        return nonStandardSchedules[target].stagePeriods;
     }
 
-    /**
-     * @notice claim available (unlocked) tokens
-     * @param target withdrawal schedule target address.
-     */
-    function withdraw(address target) external {
-        require(_isScheduleExist(target), "Vesting::MISSING_SCHEDULE");
-
-        bool isStandard = standardSchedules[target].initialized;
-        uint256 amount;
-
-        if (isStandard) {
-            amount = _withdrawStandard(target, getTime());
-        } else {
-            amount = _withdrawNonStandard(target, getTime());
-        }
-
-        emit Withdrawal(target, amount, isStandard);
-
-        token.safeTransfer(target, amount);
+    function getTime() internal view virtual returns (uint32) {
+        return uint32(block.timestamp / 60);
     }
 
     function _withdrawStandard(address target, uint32 time) private returns (uint256 amount) {
@@ -266,48 +307,5 @@ contract Vesting is Ownable {
             stagePeriods: scheduleData.stagePeriods
         });
         emit NewSchedule(scheduleData.target, false);
-    }
-
-    function getSchedulePercents(address target) external view returns (uint16[] memory) {
-        return nonStandardSchedules[target].percentsPerStages;
-    }
-
-    function getScheduleStagePeriods(address target) external view returns (uint32[] memory) {
-        return nonStandardSchedules[target].stagePeriods;
-    }
-
-    function getTime() internal view virtual returns (uint32) {
-        return uint32(block.timestamp / 60);
-    }
-
-    /**
-     * @notice update schedule target address
-     * @param from old target address.
-     * @param to new target address.
-     */
-    function updateTarget(address from, address to) external {
-        require(msg.sender == owner() || msg.sender == from, "Vesting::FORBIDDEN");
-        require(!_isScheduleExist(to), "Vesting::EXISTING_SCHEDULE");
-
-        bool isStandard = standardSchedules[from].initialized;
-        if (isStandard) {
-            standardSchedules[to] = standardSchedules[from];
-            delete standardSchedules[from];
-        } else {
-            nonStandardSchedules[to] = nonStandardSchedules[from];
-            delete nonStandardSchedules[from];
-        }
-        emit UpdatedScheduleTarget(from, to);
-    }
-
-    /**
-     * @notice withdraw stuck tokens
-     * @param _token token for withdraw.
-     * @param _amount amount of tokens.
-     */
-    function inCaseTokensGetStuck(address _token, uint256 _amount) external onlyOwner {
-        require(address(token) != _token, "Vesting::FORBIDDEN");
-
-        IERC20(_token).safeTransfer(msg.sender, _amount);
     }
 }
