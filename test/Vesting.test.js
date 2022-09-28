@@ -250,19 +250,19 @@ describe("Vesting", function () {
 		it("Standard", async function () {
 			await vesting.createVestingScheduleBatch(standardSchedules);
 
-			await vesting.setMockTime(28160701); // first stage
+			await vesting.setMockTime(28381021); // first stage
 			expect(await vesting.claimableAmount(caller.address)).to.equal(
 				standardSchedules[1].totalAmount.mul(30).div(100)
 			);
 
-			await vesting.setMockTime(28293181); // second stage
+			await vesting.setMockTime(28512061); // second stage
 			expect(await vesting.claimableAmount(caller.address)).to.equal(
 				standardSchedules[1].totalAmount.mul(375).div(1000)
 			);
 
 			await vesting.withdraw(caller.address);
 
-			await vesting.setMockTime(28425661); // third stage
+			await vesting.setMockTime(28644541); // third stage
 			expect(await vesting.claimableAmount(caller.address)).to.equal(
 				standardSchedules[1].totalAmount.mul(75).div(1000)
 			);
@@ -298,7 +298,7 @@ describe("Vesting", function () {
 		describe("standard: ", function () {
 			it("Should withdraw for first stage", async function () {
 				await vesting.createVestingScheduleBatch(standardSchedules);
-				await vesting.setMockTime(28160701); // first stage
+				await vesting.setMockTime(28381021); // first stage
 
 				await expect(vesting.withdraw(caller.address))
 					.to.emit(vesting, "Withdrawal")
@@ -317,9 +317,9 @@ describe("Vesting", function () {
 
 			it("Should withdraw another time after first withdraw", async function () {
 				await vesting.createVestingScheduleBatch(standardSchedules);
-				await vesting.setMockTime(28160701); // first stage
+				await vesting.setMockTime(28381021); // first stage
 				await vesting.withdraw(caller.address);
-				await vesting.setMockTime(28293181); // second stage
+				await vesting.setMockTime(28512061); // second stage
 
 				await expect(vesting.withdraw(caller.address))
 					.to.emit(vesting, "Withdrawal")
@@ -338,7 +338,7 @@ describe("Vesting", function () {
 
 			it("Should withdraw tokens for 3 stages at once", async function () {
 				await vesting.createVestingScheduleBatch(standardSchedules);
-				await vesting.setMockTime(28425661); // third stage
+				await vesting.setMockTime(28644541); // third stage
 
 				await expect(vesting.withdraw(caller.address))
 					.to.emit(vesting, "Withdrawal")
@@ -357,7 +357,7 @@ describe("Vesting", function () {
 
 			it("Should delete schedule after stages finish", async function () {
 				await vesting.createVestingScheduleBatch(standardSchedules);
-				await vesting.setMockTime(29213100); // last stage
+				await vesting.setMockTime(29433661); // last stage
 
 				await expect(vesting.withdraw(caller.address))
 					.to.emit(vesting, "Withdrawal")
