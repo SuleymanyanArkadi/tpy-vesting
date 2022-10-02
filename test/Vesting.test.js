@@ -250,19 +250,19 @@ describe("Vesting", function () {
 		it("Standard", async function () {
 			await vesting.createVestingScheduleBatch(standardSchedules);
 
-			await vesting.setMockTime(28381021); // first stage
+			await vesting.setMockTime(28381500); // first stage
 			expect(await vesting.claimableAmount(caller.address)).to.equal(
 				standardSchedules[1].totalAmount.mul(30).div(100)
 			);
 
-			await vesting.setMockTime(28512061); // second stage
+			await vesting.setMockTime(28512540); // second stage
 			expect(await vesting.claimableAmount(caller.address)).to.equal(
 				standardSchedules[1].totalAmount.mul(375).div(1000)
 			);
 
 			await vesting.withdraw(caller.address);
 
-			await vesting.setMockTime(28644541); // third stage
+			await vesting.setMockTime(28645020); // third stage
 			expect(await vesting.claimableAmount(caller.address)).to.equal(
 				standardSchedules[1].totalAmount.mul(75).div(1000)
 			);
@@ -294,11 +294,77 @@ describe("Vesting", function () {
 		});
 	});
 
+	describe("emergencyWithdraw: ", function () {
+		it("Should withdraw all unreleased tokens after 2-nd stage(standard)", async function () {
+			await vesting.createVestingScheduleBatch(standardSchedules);
+			await vesting.setMockTime(28512540); // second stage
+			await vesting.withdraw(caller.address);
+
+			const unreleasedTokens = standardSchedules[1].totalAmount.sub(
+				standardSchedules[1].totalAmount.mul(375).div(1000)
+			);
+			await expect(() => vesting.emergencyWithdraw(caller.address)).to.changeTokenBalances(
+				token,
+				[vesting, deployer],
+				[unreleasedTokens.mul(-1), unreleasedTokens]
+			);
+			expect(await vesting.standardSchedules(caller.address)).to.eql([
+				false,
+				BigNumber.from(0),
+				BigNumber.from(0),
+				0
+			]);
+		});
+
+		it("Should withdraw all unreleased tokens after 2-nd stage(non standard)", async function () {
+			await vesting.createVestingScheduleBatch(nonStandardSchedules);
+			await vesting.setMockTime(nonStandardSchedules[1].stagePeriods[1]); // second stage
+			await vesting.withdraw(caller.address);
+
+			expect(await token.balanceOf(caller.address)).to.equal(
+				nonStandardSchedules[1].totalAmount.mul(50).div(100)
+			);
+
+			const unreleasedTokens = nonStandardSchedules[1].totalAmount.sub(
+				nonStandardSchedules[1].totalAmount.mul(50).div(100)
+			);
+			await expect(() => vesting.emergencyWithdraw(caller.address)).to.changeTokenBalances(
+				token,
+				[vesting, deployer],
+				[unreleasedTokens.mul(-1), unreleasedTokens]
+			);
+			expect(await vesting.nonStandardSchedules(caller.address)).to.eql([
+				false,
+				BigNumber.from(0),
+				BigNumber.from(0),
+				0
+			]);
+		});
+
+		it("Should emit 'EmergencyWithdrawal' with correct args", async function () {
+			await vesting.createVestingScheduleBatch(nonStandardSchedules);
+
+			await expect(vesting.emergencyWithdraw(caller.address))
+				.to.emit(vesting, "EmergencyWithdrawal")
+				.withArgs(caller.address, nonStandardSchedules[1].totalAmount, false);
+		});
+
+		it("Should revert with 'Ownable: caller is not the owner'", async function () {
+			await expect(vesting.connect(caller).emergencyWithdraw(caller.address)).to.be.revertedWith(
+				"Ownable: caller is not the owner"
+			);
+		});
+
+		it("Should revert with 'Vesting::MISSING_SCHEDULE'", async function () {
+			await expect(vesting.emergencyWithdraw(caller.address)).to.be.revertedWith("Vesting::MISSING_SCHEDULE");
+		});
+	});
+
 	describe("withdraw: ", function () {
 		describe("standard: ", function () {
 			it("Should withdraw for first stage", async function () {
 				await vesting.createVestingScheduleBatch(standardSchedules);
-				await vesting.setMockTime(28381021); // first stage
+				await vesting.setMockTime(28381500); // first stage
 
 				await expect(vesting.withdraw(caller.address))
 					.to.emit(vesting, "Withdrawal")
@@ -317,9 +383,9 @@ describe("Vesting", function () {
 
 			it("Should withdraw another time after first withdraw", async function () {
 				await vesting.createVestingScheduleBatch(standardSchedules);
-				await vesting.setMockTime(28381021); // first stage
+				await vesting.setMockTime(28381500); // first stage
 				await vesting.withdraw(caller.address);
-				await vesting.setMockTime(28512061); // second stage
+				await vesting.setMockTime(28512540); // second stage
 
 				await expect(vesting.withdraw(caller.address))
 					.to.emit(vesting, "Withdrawal")
@@ -338,7 +404,7 @@ describe("Vesting", function () {
 
 			it("Should withdraw tokens for 3 stages at once", async function () {
 				await vesting.createVestingScheduleBatch(standardSchedules);
-				await vesting.setMockTime(28644541); // third stage
+				await vesting.setMockTime(28645020); // third stage
 
 				await expect(vesting.withdraw(caller.address))
 					.to.emit(vesting, "Withdrawal")
@@ -357,7 +423,7 @@ describe("Vesting", function () {
 
 			it("Should delete schedule after stages finish", async function () {
 				await vesting.createVestingScheduleBatch(standardSchedules);
-				await vesting.setMockTime(29433661); // last stage
+				await vesting.setMockTime(29434140); // last stage
 
 				await expect(vesting.withdraw(caller.address))
 					.to.emit(vesting, "Withdrawal")
