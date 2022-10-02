@@ -63,15 +63,15 @@ contract Vesting is Ownable {
     uint16[9] public percentsPerStages = [3000, 750, 750, 750, 750, 1000, 1000, 1000, 1000];
     /// @notice standard schedule stages in minutes. block.timestamp / 60
     uint32[9] public stagePeriods = [
-        28160460,
-        28292940,
-        28425420,
-        28556460,
-        28687500,
-        28819980,
-        28952460,
-        29082060,
-        29213100
+        28381500,
+        28512540,
+        28645020,
+        28777500,
+        28908540,
+        29038140,
+        29170620,
+        29303100,
+        29434140
     ];
 
     event NewSchedule(address target, bool isStandard);
@@ -81,6 +81,28 @@ contract Vesting is Ownable {
 
     constructor(IERC20 _token) {
         token = _token;
+    }
+
+    /**
+     * @notice early withdraw tokens to owner address (in case if something goes wrong)
+     * @param target withdrawal schedule target address
+     */
+    function emergencyWithdraw(address target) external onlyOwner {
+        require(_isScheduleExist(target), "Vesting::MISSING_SCHEDULE");
+
+        if (standardSchedules[target].initialized) {
+            StandardVestingSchedule memory schedule = standardSchedules[target];
+
+            delete standardSchedules[target];
+            emit EmergencyWithdrawal(target, schedule.totalAmount - schedule.released, true);
+            require(token.transfer(msg.sender, schedule.totalAmount - schedule.released));
+        } else {
+            NonStandardVestingSchedule memory schedule = nonStandardSchedules[target];
+
+            delete nonStandardSchedules[target];
+            emit EmergencyWithdrawal(target, schedule.totalAmount - schedule.released, false);
+            require(token.transfer(msg.sender, schedule.totalAmount - schedule.released));
+        }
     }
 
     /**
@@ -132,7 +154,7 @@ contract Vesting is Ownable {
      * @param to new target address.
      */
     function updateTarget(address from, address to) external {
-        require(msg.sender == from, "Vesting::FORBIDDEN");
+        require(msg.sender == owner() || msg.sender == from, "Vesting::FORBIDDEN");
         require(!_isScheduleExist(to), "Vesting::EXISTING_SCHEDULE");
 
         bool isStandard = standardSchedules[from].initialized;
